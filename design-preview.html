@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en" data-theme="terminal-dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VibeMaestro — Design Preview</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <style>
+    /* =========================================================
+       Tokens — semantic API. Themes only override values.
+       ========================================================= */
+    :root {
+      /* primitives (theme-agnostic) */
+      --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+      --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px; --space-9: 96px;
+      --radius-xs: 3px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px; --radius-pill: 9999px;
+
+      --font-display: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --font-body: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+      --duration-fast: 120ms;
+      --duration-base: 220ms;
+      --duration-slow: 480ms;
+      --duration-pulse: 2200ms;
+      --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+      --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ---- theme: terminal-dark (v1 default) ---- */
+    [data-theme="terminal-dark"] {
+      --surface-base: oklch(15% 0.005 240);
+      --surface-raised: oklch(19% 0.006 240);
+      --surface-pressed: oklch(22% 0.008 240);
+      --surface-overlay: oklch(11% 0.005 240 / 0.78);
+      --surface-inset: oklch(13% 0.005 240);
+
+      --text-primary: oklch(94% 0.005 240);
+      --text-secondary: oklch(72% 0.008 240);
+      --text-tertiary: oklch(54% 0.010 240);
+      --text-on-accent: oklch(15% 0.005 240);
+
+      --border-subtle: oklch(26% 0.008 240);
+      --border-default: oklch(34% 0.010 240);
+      --border-strong: oklch(50% 0.012 240);
+      --border-focus: oklch(78% 0.14 75);
+
+      --accent: oklch(78% 0.14 75);
+      --accent-hover: oklch(82% 0.14 75);
+      --accent-pressed: oklch(70% 0.13 70);
+      --accent-soft: oklch(35% 0.06 75);
+
+      --status-idle: oklch(58% 0.008 240);
+      --status-running: oklch(72% 0.16 145);
+      --status-review: oklch(74% 0.11 70);
+      --status-complete: oklch(58% 0.04 145);
+      --status-blocked: oklch(68% 0.16 30);
+      --status-error: oklch(64% 0.18 22);
+
+      --agent-claude-code: oklch(74% 0.13 50);
+      --agent-codex: oklch(72% 0.12 235);
+      --agent-gemini: oklch(72% 0.13 145);
+      --agent-gpt-5: oklch(70% 0.14 320);
+      --agent-cursor: oklch(74% 0.13 195);
+      --agent-aider: oklch(72% 0.13 90);
+
+      --shadow-1: 0 1px 0 rgb(0 0 0 / 0.45);
+      --shadow-2: 0 2px 4px rgb(0 0 0 / 0.45), 0 1px 0 rgb(0 0 0 / 0.45);
+      --shadow-3: 0 12px 32px -8px rgb(0 0 0 / 0.65), 0 2px 4px rgb(0 0 0 / 0.45);
+    }
+
+    /* ---- theme: paper-light (stub for theme-swap demo) ---- */
+    [data-theme="paper-light"] {
+      --surface-base: oklch(97.5% 0.008 80);
+      --surface-raised: oklch(94% 0.012 80);
+      --surface-pressed: oklch(90% 0.014 80);
+      --surface-overlay: oklch(20% 0.005 80 / 0.40);
+      --surface-inset: oklch(95% 0.010 80);
+
+      --text-primary: oklch(18% 0.015 60);
+      --text-secondary: oklch(38% 0.012 60);
+      --text-tertiary: oklch(58% 0.008 60);
+      --text-on-accent: oklch(97.5% 0.008 80);
+
+      --border-subtle: oklch(86% 0.012 80);
+      --border-default: oklch(78% 0.012 80);
+      --border-strong: oklch(60% 0.012 80);
+      --border-focus: oklch(58% 0.14 55);
+
+      --accent: oklch(58% 0.14 55);
+      --accent-hover: oklch(62% 0.14 55);
+      --accent-pressed: oklch(42% 0.13 50);
+      --accent-soft: oklch(92% 0.04 70);
+
+      --status-idle: oklch(58% 0.008 60);
+      --status-running: oklch(64% 0.13 145);
+      --status-review: oklch(70% 0.12 75);
+      --status-complete: oklch(50% 0.04 145);
+      --status-blocked: oklch(54% 0.16 25);
+      --status-error: oklch(46% 0.18 22);
+
+      --agent-claude-code: oklch(54% 0.10 50);
+      --agent-codex: oklch(50% 0.09 235);
+      --agent-gemini: oklch(50% 0.11 145);
+      --agent-gpt-5: oklch(48% 0.12 320);
+      --agent-cursor: oklch(52% 0.10 195);
+      --agent-aider: oklch(52% 0.11 90);
+
+      --shadow-1: 0 1px 0 rgb(20 16 10 / 0.04);
+      --shadow-2: 0 2px 4px rgb(20 16 10 / 0.06), 0 1px 0 rgb(20 16 10 / 0.04);
+      --shadow-3: 0 8px 24px -8px rgb(20 16 10 / 0.16), 0 2px 4px rgb(20 16 10 / 0.06);
+    }
+
+    /* =========================================================
+       Reset + base
+       ========================================================= */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--surface-base);
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: var(--accent-hover); }
+
+    .caption {
+      font-family: var(--font-mono);
+      font-size: 11px; line-height: 1.3;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-tertiary);
+      font-weight: 500;
+    }
+    .meta { font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); }
+    .title { font-size: 15px; font-weight: 600; line-height: 1.4; color: var(--text-primary); }
+    .heading { font-family: var(--font-body); font-size: 20px; font-weight: 500; line-height: 1.3; color: var(--text-primary); }
+    .display { font-family: var(--font-display); font-size: clamp(28px, 1.5vw + 22px, 44px); font-weight: 500; line-height: 1.15; letter-spacing: -0.01em; color: var(--text-primary); }
+
+    /* =========================================================
+       App shell
+       ========================================================= */
+    .app {
+      display: grid; grid-template-rows: auto 1fr auto;
+      min-height: 100vh;
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-4) var(--space-6);
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--surface-base);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: var(--space-3); color: var(--text-primary); }
+    .brand-mark { color: var(--accent); width: 28px; height: 28px; }
+    .brand-name {
+      font-family: var(--font-display); font-weight: 500;
+      letter-spacing: 0.04em; font-size: 14px;
+    }
+    .brand-name span { color: var(--text-tertiary); font-weight: 400; }
+
+    .top-actions { display: flex; align-items: center; gap: var(--space-3); }
+    .theme-switch {
+      display: inline-flex; padding: 2px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+    }
+    .theme-switch button {
+      appearance: none; background: transparent; border: 0;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.04em;
+      padding: var(--space-1) var(--space-3);
+      border-radius: 3px;
+      cursor: pointer;
+      transition: color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard);
+    }
+    .theme-switch button[aria-pressed="true"] {
+      background: var(--surface-pressed); color: var(--text-primary);
+    }
+    .theme-switch button:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+
+    /* Main scroll area */
+    main { padding: var(--space-7) var(--space-6) var(--space-6); display: grid; gap: var(--space-8); }
+    section { display: grid; gap: var(--space-4); }
+    .section-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: var(--space-3);
+    }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--space-4); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--space-4); }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: var(--space-4); }
+    @media (max-width: 900px) { .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; } .grid-2 { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+    /* =========================================================
+       Tokens preview — swatches, type, spacing
+       ========================================================= */
+    .swatch {
+      background: var(--surface-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: grid; grid-template-rows: 56px auto;
+    }
+    .swatch-color { background: var(--c, var(--surface-pressed)); }
+    .swatch-meta { padding: var(--space-2) var(--space-3); display: grid; gap: 2px; }
+    .swatch-name { font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); }
+    .swatch-value { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+
+    .type-row {
+      display: grid; grid-template-columns: 160px 1fr; gap: var(--space-4);
+      padding: var(--space-3) 0;
+      border-top: 1px solid var(--border-subtle);
+      align-items: baseline;
+    }
+    .type-row:first-child { border-top: 0; }
+
+    .space-scale { display: grid; gap: var(--space-2); }
+    .space-row { display: grid; grid-template-columns: 80px 80px 1fr; gap: var(--space-3); align-items: center; }
+    .space-bar { background: var(--accent); height: 6px; border-radius: 2px; }
+
+    /* =========================================================
+       Components — agent chip, status, button, task card
+       ========================================================= */
+    .agent-chip {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      padding: 2px 8px 2px 2px;
+      background: color-mix(in oklch, var(--agent), transparent 88%);
+      border: 1px solid color-mix(in oklch, var(--agent), transparent 70%);
+      border-radius: var(--radius-sm);
+      color: var(--agent);
+      font-family: var(--font-mono);
+      font-size: 11px; letter-spacing: 0.04em;
+      line-height: 1;
+    }
+    .agent-mono {
+      width: 20px; height: 20px;
+      display: grid; place-items: center;
+      background: color-mix(in oklch, var(--agent), transparent 75%);
+      color: var(--agent);
+      border-radius: 3px;
+      font-weight: 600;
+    }
+
+    .status {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); flex-shrink: 0; }
+    .status-idle .status-dot { background: transparent; box-shadow: inset 0 0 0 1.5px var(--status-idle); }
+    .status-running .status-dot {
+      background: var(--status-running);
+      animation: pulse var(--duration-pulse) var(--ease-standard) infinite;
+    }
+    .status-review .status-dot {
+      background: var(--status-review);
+      box-shadow: 0 0 0 4px color-mix(in oklch, var(--status-review), transparent 78%);
+    }
+    .status-complete .status-dot { background: var(--status-complete); }
+    .status-blocked .status-dot {
+      width: 0; height: 0; background: transparent; border-radius: 0;
+      border-left: 5px solid transparent; border-right: 5px solid transparent;
+      border-bottom: 8px solid var(--status-blocked);
+    }
+    .status-error .status-dot { background: var(--status-error); box-shadow: 0 0 0 1px var(--status-error); }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0   color-mix(in oklch, var(--status-running), transparent 50%); }
+      70%  { box-shadow: 0 0 0 6px color-mix(in oklch, var(--status-running), transparent 100%); }
+      100% { box-shadow: 0 0 0 0   color-mix(in oklch, var(--status-running), transparent 100%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .status-running .status-dot { animation: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--status-running), transparent 70%); }
+    }
+
+    button.btn, .btn {
+      appearance: none; cursor: pointer;
+      font-family: var(--font-body); font-size: 13px; font-weight: 500;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-default);
+      background: var(--surface-raised);
+      color: var(--text-primary);
+      transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
+    }
+    button.btn:hover { background: var(--surface-pressed); }
+    button.btn:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+    button.btn-primary { background: var(--accent); color: var(--text-on-accent); border-color: var(--accent); }
+    button.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    button.btn-primary:active { background: var(--accent-pressed); border-color: var(--accent-pressed); }
+    button.btn-ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
+    button.btn-ghost:hover { background: var(--surface-raised); color: var(--text-primary); }
+
+    /* Task card */
+    .card {
+      position: relative;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+      display: grid; gap: var(--space-3);
+      box-shadow: var(--shadow-1);
+      transition: box-shadow var(--duration-base) var(--ease-standard), border-color var(--duration-base) var(--ease-standard);
+      overflow: hidden;
+    }
+    .card::before {
+      content: ""; position: absolute; left: 0; right: 0; top: 0;
+      height: 3px; background: var(--agent, transparent);
+      transition: height var(--duration-fast) var(--ease-standard);
+    }
+    .card:hover { box-shadow: var(--shadow-2); border-color: var(--border-default); }
+    .card:hover::before { height: 5px; }
+    .card:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+
+    .card[data-state="reviewing"] { border-color: color-mix(in oklch, var(--status-review), transparent 65%); }
+    .card[data-state="blocked"] { border-color: color-mix(in oklch, var(--status-blocked), transparent 60%); }
+    .card[data-state="error"] { border-color: var(--status-error); }
+    .card[data-state="complete"] { opacity: 0.72; }
+
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+    .task-key { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; color: var(--text-tertiary); text-transform: uppercase; }
+    .card-log {
+      font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+      background: var(--surface-inset);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xs);
+      padding: var(--space-2) var(--space-3);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .card-log::before { content: "› "; color: var(--accent); }
+
+    /* =========================================================
+       Board
+       ========================================================= */
+    .board {
+      display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: var(--space-4);
+      position: relative;
+      padding-top: var(--space-3);
+    }
+    .board::before {
+      /* subtle horizontal staff lines under the lanes */
+      content: ""; position: absolute; inset: var(--space-7) 0 var(--space-3) 0;
+      background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 79px, var(--border-subtle) 79px, var(--border-subtle) 80px);
+      pointer-events: none;
+      opacity: 0.45;
+    }
+    .lane { display: grid; gap: var(--space-3); position: relative; z-index: 1; }
+    .lane-head { display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-2); border-bottom: 1px solid var(--border-subtle); }
+    .lane-count {
+      margin-left: auto;
+      font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+      padding: 1px 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs);
+    }
+    @media (max-width: 1100px) { .board { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 640px)  { .board { grid-template-columns: 1fr; } }
+
+    /* =========================================================
+       Conductor strip (footer)
+       ========================================================= */
+    .conductor {
+      position: sticky; bottom: 0;
+      background: var(--surface-raised);
+      border-top: 1px solid var(--border-subtle);
+      padding: var(--space-3) var(--space-6);
+      display: flex; align-items: center; gap: var(--space-5);
+      font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);
+      box-shadow: var(--shadow-3);
+    }
+    .conductor-label { color: var(--text-tertiary); letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
+    .conductor-item { display: inline-flex; align-items: center; gap: var(--space-2); }
+    .conductor-divider { color: var(--text-tertiary); }
+
+    /* =========================================================
+       Logo wordmark inline
+       ========================================================= */
+    .logo {
+      display: inline-flex; align-items: center; gap: var(--space-3);
+    }
+    .logo svg { color: var(--accent); width: 28px; height: 28px; }
+    .logo-text {
+      font-family: var(--font-display); font-size: 14px; letter-spacing: 0.06em;
+      color: var(--text-primary);
+    }
+    .logo-text small {
+      color: var(--text-tertiary); font-size: 11px; letter-spacing: 0.06em; margin-left: 6px;
+    }
+
+    /* =========================================================
+       Section: anti-pattern callout (for the doc preview)
+       ========================================================= */
+    .callout {
+      background: var(--surface-raised);
+      border-left: 2px solid var(--accent);
+      padding: var(--space-4) var(--space-5);
+      border-radius: var(--radius-md);
+      font-size: 13px; color: var(--text-secondary);
+    }
+    .callout strong { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- =================== TOPBAR =================== -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" role="img" aria-label="VibeMaestro">
+            <line x1="6" y1="19" x2="6" y2="11" />
+            <line x1="12" y1="19" x2="12" y2="5" />
+            <line x1="18" y1="19" x2="18" y2="14" />
+            <line x1="3" y1="22" x2="21" y2="22" />
+          </svg>
+          <span class="logo-text">VIBEMAESTRO<small>v0.1.0</small></span>
+        </span>
+      </div>
+      <div class="top-actions">
+        <span class="caption">Theme</span>
+        <div class="theme-switch" role="group" aria-label="Theme">
+          <button id="t-dark" aria-pressed="true">terminal-dark</button>
+          <button id="t-light" aria-pressed="false">paper-light</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- =================== HERO =================== -->
+      <section>
+        <div class="display">An agent-first project board.</div>
+        <p style="max-width: 60ch; color: var(--text-secondary); font-size: 16px; line-height: 1.6; margin: 0;">
+          You write the task. Local agents — Claude Code, Codex, and the rest of your toolchain —
+          pick it up and move it across the board. Your job is to conduct, not to copy-paste prompts.
+        </p>
+        <div style="display:flex; gap: var(--space-3); margin-top: var(--space-3);">
+          <button class="btn btn-primary">New task</button>
+          <button class="btn">Connect agent</button>
+          <button class="btn btn-ghost">Read the docs</button>
+        </div>
+      </section>
+
+      <!-- =================== BOARD =================== -->
+      <section>
+        <div class="section-head">
+          <div>
+            <span class="caption">Board</span>
+            <div class="heading" style="margin-top: 4px;">Refactor &amp; release week</div>
+          </div>
+          <span class="meta">2 agents · 7 tasks</span>
+        </div>
+
+        <div class="board">
+          <!-- Backlog -->
+          <div class="lane">
+            <div class="lane-head"><span class="caption">Backlog</span><span class="lane-count">2</span></div>
+
+            <article class="card" data-state="idle" style="--agent: var(--agent-claude-code);" tabindex="0">
+              <div class="card-head">
+                <span class="task-key">VM-221</span>
+                <span class="agent-chip" style="--agent: var(--agent-claude-code);">
+                  <span class="agent-mono">CC</span>Claude Code
+                </span>
+              </div>
+              <div class="title">Add OAuth callback handler for self-hosted GitLab</div>
+              <span class="status status-idle"><span class="status-dot"></span>idle · queued</span>
+            </article>
+
+            <article class="card" data-state="idle" style="--agent: var(--agent-codex);" tabindex="0">
+              <div class="card-head">
+                <span class="task-key">VM-222</span>
+                <span class="agent-chip" style="--agent: var(--agent-codex);">
+                  <span class="agent-mono">CX</span>Codex
+                </span>
+              </div>
+              <div class="title">Migrate test runner from Mocha to Vitest</div>
+              <span class="status status-idle"><span class="status-dot"></span>idle · queued</span>
+            </article>
+          </div>
+
+          <!-- Running -->
+          <div class="lane">
+            <div class="lane-head"><span class="caption">Running</span><span class="lane-count">2</span></div>
+
+            <article class="card" data-state="running" style="--agent: var(--agent-claude-code);" tabindex="0">
+              <div class="card-head">
+                <span class="task-key">VM-218</span>
+                <span class="agent-chip" style="--agent: var(--agent-claude-code);">
+                  <span class="agent-mono">CC</span>Claude Code
+                </span>
+              </div>
+              <div class="title">Refactor auth middleware to use new session token format</div>
+              <span class="status status-running"><span class="status-dot"></span>running · 2m 14s · 18 tool calls</span>
+              <div class="card-log" id="live-log">Reading src/auth/session.ts</div>
+            </article>
+
+            <article class="card" data-state="running" style="--agent: var(--agent-codex);" tabindex="0">
+              <div class="card-head">
+                <span class="task-key">VM-219</span>
+                <span class="agent-chip" style="--agent: var(--agent-codex);">
+                  <span class="agent-mono">CX</span>Codex
+                </span>
+              </div>
+              <div class="title">Generate TypeScript types from OpenAPI spec</div>
+              <span class="status status-running"><span class="status-dot"></span>running · 0m 41s · 6 tool calls</span>
+              <div class="card-log">openapi.yaml → src/api/types.ts</div>
+            </article>
+          </div>
+
+          <!-- Reviewing -->
+          <div class="lane">
+            <div class="lane-head"><span class="caption">Reviewing</span><span class="lane-count">2</span></div>
+
+            <article class="card" data-state="reviewing" style="--agent: var(--agent-claude-code);" tabindex="0">
+              <div class="card-head">
+                <span class="task-key">VM-211</span>
+                <span class="agent-chip" style="--agent: var(--agent-claude-code);">
+                  <span class="agent-mono">CC</span>Claude Code
+                </span>
+              </div>
+              <div class="title">Replace bcrypt with argon2id across user service</div>
+              <span class="status status-review"><span class="status-dot"></span>review · 4 files · +186 −94</span>
+            </article>
+
+            <article class="card" data-state="blocked" style="--agent: var(--agent-codex);" tabindex="0">
+              <div class="card-head">
+                <span class="task-key">VM-207</span>
+                <span class="agent-chip" style="--agent: var(--agent-codex);">
+                  <span class="agent-mono">CX</span>Codex
+                </span>
+              </div>
+              <div class="title">Wire feature flag for new pricing page</div>
+              <span class="status status-blocked"><span class="status-dot"></span>blocked · awaiting flag key</span>
+            </article>
+          </div>
+
+          <!-- Complete -->
+          <div class="lane">
+            <div class="lane-head"><span class="caption">Complete</span><span class="lane-count">1</span></div>
+
+            <article class="card" data-state="complete" style="--agent: var(--agent-claude-code);" tabindex="0">
+              <div class="card-head">
+                <span class="task-key">VM-204</span>
+                <span class="agent-chip" style="--agent: var(--agent-claude-code);">
+                  <span class="agent-mono">CC</span>Claude Code
+                </span>
+              </div>
+              <div class="title">Strip Buy Me a Coffee link from README footer</div>
+              <span class="status status-complete"><span class="status-dot"></span>complete · 1m 02s · merged</span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================== PALETTE =================== -->
+      <section>
+        <div class="section-head">
+          <span class="caption">Color tokens · semantic</span>
+          <span class="meta">themes only override the values</span>
+        </div>
+        <div class="grid-4">
+          <div class="swatch"><div class="swatch-color" style="--c: var(--surface-base);"></div><div class="swatch-meta"><span class="swatch-name">surface.base</span><span class="swatch-value">app background</span></div></div>
+          <div class="swatch"><div class="swatch-color" style="--c: var(--surface-raised);"></div><div class="swatch-meta"><span class="swatch-name">surface.raised</span><span class="swatch-value">card, lane</span></div></div>
+          <div class="swatch"><div class="swatch-color" style="--c: var(--surface-pressed);"></div><div class="swatch-meta"><span class="swatch-name">surface.pressed</span><span class="swatch-value">pressed / nested</span></div></div>
+          <div class="swatch"><div class="swatch-color" style="--c: var(--surface-inset);"></div><div class="swatch-meta"><span class="swatch-name">surface.inset</span><span class="swatch-value">log preview</span></div></div>
+
+          <div class="swatch"><div class="swatch-color" style="--c: var(--text-primary); border-bottom: 1px solid var(--border-subtle);"></div><div class="swatch-meta"><span class="swatch-name">text.primary</span><span class="swatch-value">primary ink</span></div></div>
+          <div class="swatch"><div class="swatch-color" style="--c: var(--text-secondary);"></div><div class="swatch-meta"><span class="swatch-name">text.secondary</span><span class="swatch-value">labels, body</span></div></div>
+          <div class="swatch"><div class="swatch-color" style="--c: var(--text-tertiary);"></div><div class="swatch-meta"><span class="swatch-name">text.tertiary</span><span class="swatch-value">metadata</span></div></div>
+          <div class="swatch"><div class="swatch-color" style="--c: var(--accent);"></div><div class="swatch-meta"><span class="swatch-name">accent</span><span class="swatch-value">CTA, focus, link</span></div></div>
+        </div>
+
+        <div class="caption" style="margin-top: var(--space-4);">Status</div>
+        <div class="grid-3">
+          <div><span class="status status-idle"><span class="status-dot"></span>idle / queued</span></div>
+          <div><span class="status status-running"><span class="status-dot"></span>running</span></div>
+          <div><span class="status status-review"><span class="status-dot"></span>review</span></div>
+          <div><span class="status status-complete"><span class="status-dot"></span>complete</span></div>
+          <div><span class="status status-blocked"><span class="status-dot"></span>blocked</span></div>
+          <div><span class="status status-error"><span class="status-dot"></span>error</span></div>
+        </div>
+
+        <div class="caption" style="margin-top: var(--space-4);">Agent identity</div>
+        <div class="grid-3">
+          <div><span class="agent-chip" style="--agent: var(--agent-claude-code);"><span class="agent-mono">CC</span>Claude Code</span></div>
+          <div><span class="agent-chip" style="--agent: var(--agent-codex);"><span class="agent-mono">CX</span>Codex</span></div>
+          <div style="opacity: 0.55;"><span class="agent-chip" style="--agent: var(--agent-gemini);"><span class="agent-mono">GM</span>Gemini · future</span></div>
+          <div style="opacity: 0.55;"><span class="agent-chip" style="--agent: var(--agent-gpt-5);"><span class="agent-mono">G5</span>GPT-5 · future</span></div>
+          <div style="opacity: 0.55;"><span class="agent-chip" style="--agent: var(--agent-cursor);"><span class="agent-mono">CR</span>Cursor · future</span></div>
+          <div style="opacity: 0.55;"><span class="agent-chip" style="--agent: var(--agent-aider);"><span class="agent-mono">AI</span>Aider · future</span></div>
+        </div>
+      </section>
+
+      <!-- =================== TYPOGRAPHY =================== -->
+      <section>
+        <div class="section-head">
+          <span class="caption">Typography</span>
+          <span class="meta">Inter (body) · JetBrains Mono (display + technical)</span>
+        </div>
+        <div class="type-row"><span class="meta">caption · 11/1.3</span><span class="caption">Lane header</span></div>
+        <div class="type-row"><span class="meta">meta · 12/1.4</span><span class="meta">VM-218 · 2m 14s</span></div>
+        <div class="type-row"><span class="meta">body · 14/1.5</span><span>Replace bcrypt with argon2id across the user service.</span></div>
+        <div class="type-row"><span class="meta">title · 15/600</span><span class="title">Refactor auth middleware</span></div>
+        <div class="type-row"><span class="meta">heading · 20/500</span><span class="heading">Refactor &amp; release week</span></div>
+        <div class="type-row"><span class="meta">display · clamp</span><span class="display">An agent-first board.</span></div>
+      </section>
+
+      <!-- =================== SPACING =================== -->
+      <section>
+        <div class="section-head">
+          <span class="caption">Spacing scale</span>
+          <span class="meta">4px base · use tokens, never raw px</span>
+        </div>
+        <div class="space-scale">
+          <div class="space-row"><span class="meta">space-1</span><span class="meta">4px</span><span class="space-bar" style="width: 4px;"></span></div>
+          <div class="space-row"><span class="meta">space-2</span><span class="meta">8px</span><span class="space-bar" style="width: 8px;"></span></div>
+          <div class="space-row"><span class="meta">space-3</span><span class="meta">12px</span><span class="space-bar" style="width: 12px;"></span></div>
+          <div class="space-row"><span class="meta">space-4</span><span class="meta">16px</span><span class="space-bar" style="width: 16px;"></span></div>
+          <div class="space-row"><span class="meta">space-5</span><span class="meta">24px</span><span class="space-bar" style="width: 24px;"></span></div>
+          <div class="space-row"><span class="meta">space-6</span><span class="meta">32px</span><span class="space-bar" style="width: 32px;"></span></div>
+          <div class="space-row"><span class="meta">space-7</span><span class="meta">48px</span><span class="space-bar" style="width: 48px;"></span></div>
+          <div class="space-row"><span class="meta">space-8</span><span class="meta">64px</span><span class="space-bar" style="width: 64px;"></span></div>
+          <div class="space-row"><span class="meta">space-9</span><span class="meta">96px</span><span class="space-bar" style="width: 96px;"></span></div>
+        </div>
+      </section>
+
+      <!-- =================== ANTI-SLOP =================== -->
+      <section>
+        <div class="section-head">
+          <span class="caption">Anti-patterns</span>
+          <span class="meta">reject in PR review</span>
+        </div>
+        <div class="callout">
+          <strong>Do not ship:</strong> purple→blue gradients on UI surfaces, glassmorphism cards,
+          stock-avatar circles for agents, emoji as status, generic centered-hero with gradient blob,
+          sidebar+cards+chart dashboard layouts, border-radius &gt; 12px on cards,
+          more than two font families, color used decoratively without semantic meaning,
+          scroll-reveal animations on the board, dark mode shipped at &lt; 100% parity.
+        </div>
+      </section>
+
+    </main>
+
+    <!-- =================== CONDUCTOR STRIP =================== -->
+    <footer class="conductor" aria-label="Live agent activity">
+      <span class="conductor-label">Now conducting</span>
+      <span class="conductor-item"><span class="status status-running"><span class="status-dot"></span></span>CC running VM-218 · 2:14</span>
+      <span class="conductor-divider">/</span>
+      <span class="conductor-item"><span class="status status-running"><span class="status-dot"></span></span>CX running VM-219 · 0:41</span>
+      <span class="conductor-divider">/</span>
+      <span class="conductor-item"><span class="status status-review"><span class="status-dot"></span></span>VM-211 ready for review</span>
+    </footer>
+  </div>
+
+  <script>
+    // Theme switch — proves the swap mechanism: changing data-theme on <html>
+    // re-evaluates every semantic token. No component needs to know about themes.
+    (function () {
+      const root = document.documentElement;
+      const dark = document.getElementById('t-dark');
+      const light = document.getElementById('t-light');
+      function set(theme) {
+        root.setAttribute('data-theme', theme);
+        dark.setAttribute('aria-pressed', String(theme === 'terminal-dark'));
+        light.setAttribute('aria-pressed', String(theme === 'paper-light'));
+      }
+      dark.addEventListener('click', () => set('terminal-dark'));
+      light.addEventListener('click', () => set('paper-light'));
+    })();
+
+    // Mock live log on the running task — purely cosmetic for the preview.
+    (function () {
+      const el = document.getElementById('live-log');
+      if (!el) return;
+      const lines = [
+        'Reading src/auth/session.ts',
+        'Running rg "createSession\\(" src/',
+        'Editing src/auth/session.ts +24 -8',
+        'Running pnpm tsc --noEmit',
+        'Running pnpm test src/auth',
+        'Drafting commit message',
+      ];
+      let i = 0;
+      setInterval(() => { el.textContent = lines[i % lines.length]; i++; }, 1800);
+    })();
+  </script>
+</body>
+</html>

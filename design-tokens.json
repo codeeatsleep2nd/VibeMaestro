@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "name": "VibeMaestro Design System",
+    "version": "0.1.0",
+    "defaultTheme": "terminal-dark",
+    "themes": ["terminal-dark", "paper-light"],
+    "notes": "Token names are SEMANTIC (surface, text, accent, status, agent). Themes only override the value mapping — the API stays constant so swapping a theme never changes a component."
+  },
+
+  "primitives": {
+    "spacing": {
+      "0": "0",
+      "1": "4px",
+      "2": "8px",
+      "3": "12px",
+      "4": "16px",
+      "5": "24px",
+      "6": "32px",
+      "7": "48px",
+      "8": "64px",
+      "9": "96px"
+    },
+    "radius": {
+      "xs": "3px",
+      "sm": "4px",
+      "md": "6px",
+      "lg": "10px",
+      "pill": "9999px"
+    },
+    "typography": {
+      "families": {
+        "display": "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+        "body": "'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
+        "mono": "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+      },
+      "scale": {
+        "caption": { "size": "11px", "lineHeight": "1.3", "tracking": "0.08em", "weight": 500, "transform": "uppercase", "family": "mono" },
+        "meta":    { "size": "12px", "lineHeight": "1.4", "tracking": "0.02em", "weight": 400, "family": "mono" },
+        "body":    { "size": "14px", "lineHeight": "1.5", "weight": 400, "family": "body" },
+        "bodyLg":  { "size": "16px", "lineHeight": "1.55", "weight": 400, "family": "body" },
+        "title":   { "size": "15px", "lineHeight": "1.4", "weight": 600, "family": "body" },
+        "heading": { "size": "20px", "lineHeight": "1.3", "weight": 500, "family": "body" },
+        "display": { "size": "clamp(28px, 1.5vw + 22px, 44px)", "lineHeight": "1.15", "weight": 500, "tracking": "-0.01em", "family": "display" }
+      }
+    },
+    "motion": {
+      "duration": {
+        "fast": "120ms",
+        "base": "220ms",
+        "slow": "480ms",
+        "pulse": "2200ms"
+      },
+      "easing": {
+        "standard":   "cubic-bezier(0.2, 0, 0, 1)",
+        "emphasized": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "linear":     "linear"
+      }
+    }
+  },
+
+  "themes": {
+    "terminal-dark": {
+      "description": "Default. Near-black warm-cool surface, soft-white ink, amber accent. Built for long sessions watching agents work.",
+      "surface": {
+        "base":    "oklch(15% 0.005 240)",
+        "raised":  "oklch(19% 0.006 240)",
+        "pressed": "oklch(22% 0.008 240)",
+        "overlay": "oklch(11% 0.005 240 / 0.78)",
+        "inset":   "oklch(13% 0.005 240)"
+      },
+      "text": {
+        "primary":   "oklch(94% 0.005 240)",
+        "secondary": "oklch(72% 0.008 240)",
+        "tertiary":  "oklch(54% 0.010 240)",
+        "onAccent":  "oklch(15% 0.005 240)",
+        "inverse":   "oklch(15% 0.005 240)"
+      },
+      "border": {
+        "subtle":  "oklch(26% 0.008 240)",
+        "default": "oklch(34% 0.010 240)",
+        "strong":  "oklch(50% 0.012 240)",
+        "focus":   "oklch(78% 0.14 75)"
+      },
+      "accent": {
+        "base":    "oklch(78% 0.14 75)",
+        "hover":   "oklch(82% 0.14 75)",
+        "pressed": "oklch(70% 0.13 70)",
+        "soft":    "oklch(35% 0.06 75)",
+        "onAccent": "oklch(15% 0.005 240)"
+      },
+      "status": {
+        "idle":     "oklch(58% 0.008 240)",
+        "running":  "oklch(72% 0.16 145)",
+        "review":   "oklch(74% 0.11 70)",
+        "complete": "oklch(58% 0.04 145)",
+        "blocked":  "oklch(68% 0.16 30)",
+        "error":    "oklch(64% 0.18 22)"
+      },
+      "agent": {
+        "claude-code": { "label": "Claude Code", "monogram": "CC", "hue": "oklch(74% 0.13 50)",  "tier": "v1" },
+        "codex":       { "label": "Codex",       "monogram": "CX", "hue": "oklch(72% 0.12 235)", "tier": "v1" },
+        "gemini":      { "label": "Gemini",      "monogram": "GM", "hue": "oklch(72% 0.13 145)", "tier": "future" },
+        "gpt-5":       { "label": "GPT-5",       "monogram": "G5", "hue": "oklch(70% 0.14 320)", "tier": "future" },
+        "cursor":      { "label": "Cursor",      "monogram": "CR", "hue": "oklch(74% 0.13 195)", "tier": "future" },
+        "aider":       { "label": "Aider",       "monogram": "AI", "hue": "oklch(72% 0.13 90)",  "tier": "future" }
+      },
+      "shadow": {
+        "1": "0 1px 0 rgb(0 0 0 / 0.45)",
+        "2": "0 2px 4px rgb(0 0 0 / 0.45), 0 1px 0 rgb(0 0 0 / 0.45)",
+        "3": "0 12px 32px -8px rgb(0 0 0 / 0.65), 0 2px 4px rgb(0 0 0 / 0.45)"
+      }
+    },
+
+    "paper-light": {
+      "description": "Stub theme to verify the theme-swap mechanism. Not designed for v1; ship only after a dedicated pass.",
+      "surface": {
+        "base":    "oklch(97.5% 0.008 80)",
+        "raised":  "oklch(94% 0.012 80)",
+        "pressed": "oklch(90% 0.014 80)",
+        "overlay": "oklch(20% 0.005 80 / 0.40)",
+        "inset":   "oklch(95% 0.010 80)"
+      },
+      "text": {
+        "primary":   "oklch(18% 0.015 60)",
+        "secondary": "oklch(38% 0.012 60)",
+        "tertiary":  "oklch(58% 0.008 60)",
+        "onAccent":  "oklch(97.5% 0.008 80)",
+        "inverse":   "oklch(97.5% 0.008 80)"
+      },
+      "border": {
+        "subtle":  "oklch(86% 0.012 80)",
+        "default": "oklch(78% 0.012 80)",
+        "strong":  "oklch(60% 0.012 80)",
+        "focus":   "oklch(58% 0.14 55)"
+      },
+      "accent": {
+        "base":    "oklch(58% 0.14 55)",
+        "hover":   "oklch(62% 0.14 55)",
+        "pressed": "oklch(42% 0.13 50)",
+        "soft":    "oklch(92% 0.04 70)",
+        "onAccent": "oklch(97.5% 0.008 80)"
+      },
+      "status": {
+        "idle":     "oklch(58% 0.008 60)",
+        "running":  "oklch(64% 0.13 145)",
+        "review":   "oklch(70% 0.12 75)",
+        "complete": "oklch(50% 0.04 145)",
+        "blocked":  "oklch(54% 0.16 25)",
+        "error":    "oklch(46% 0.18 22)"
+      },
+      "agent": {
+        "claude-code": { "label": "Claude Code", "monogram": "CC", "hue": "oklch(54% 0.10 50)",  "tier": "v1" },
+        "codex":       { "label": "Codex",       "monogram": "CX", "hue": "oklch(50% 0.09 235)", "tier": "v1" },
+        "gemini":      { "label": "Gemini",      "monogram": "GM", "hue": "oklch(50% 0.11 145)", "tier": "future" },
+        "gpt-5":       { "label": "GPT-5",       "monogram": "G5", "hue": "oklch(48% 0.12 320)", "tier": "future" },
+        "cursor":      { "label": "Cursor",      "monogram": "CR", "hue": "oklch(52% 0.10 195)", "tier": "future" },
+        "aider":       { "label": "Aider",       "monogram": "AI", "hue": "oklch(52% 0.11 90)",  "tier": "future" }
+      },
+      "shadow": {
+        "1": "0 1px 0 rgb(20 16 10 / 0.04)",
+        "2": "0 2px 4px rgb(20 16 10 / 0.06), 0 1px 0 rgb(20 16 10 / 0.04)",
+        "3": "0 8px 24px -8px rgb(20 16 10 / 0.16), 0 2px 4px rgb(20 16 10 / 0.06)"
+      }
+    }
+  },
+
+  "scope": {
+    "v1": {
+      "agents": ["claude-code", "codex"],
+      "user": "single-user",
+      "themes": ["terminal-dark"],
+      "darkMode": "default (terminal-dark is dark)",
+      "lightMode": "deferred"
+    },
+    "future": {
+      "agents": ["gemini", "gpt-5", "cursor", "aider"],
+      "team": "design reserves an `assignee` slot on the task card and a presence row in the conductor strip; both are hidden in single-user mode",
+      "themes": ["paper-light", "user-defined"]
+    }
+  },
+
+  "extensibility": {
+    "newAgent": "Add an entry under themes.<theme>.agent.<id> with a unique hue at L≈72%, C≈0.13, sweeping H by 60° from the last allocated hue. Agents 7+ drop to a second band at L≈65%, C≈0.13.",
+    "newTheme": "Add a new key under themes.<id>. Must define every key under surface, text, border, accent, status, agent. Components do not reference theme names — only semantic tokens. Must pass the contrast targets in DESIGN.md §13.",
+    "newUser": "When team mode ships, allocate user identity stripes from the same hue allocator as agents but on a separate band (L≈68%, C≈0.07) so users and agents stay visually distinct."
+  },
+
+  "contrastTargets": {
+    "text-primary_on_surface-base":     "≥ 7.0:1",
+    "text-primary_on_surface-raised":   "≥ 7.0:1",
+    "text-secondary_on_surface-raised": "≥ 4.5:1",
+    "text-tertiary_on_surface-raised":  "≥ 3.0:1",
+    "text-on-accent_on_accent-base":    "≥ 4.5:1",
+    "border-focus_on_surface-raised":   "≥ 3.0:1",
+    "status-any_on_surface-raised":     "≥ 3.0:1"
+  }
+}
