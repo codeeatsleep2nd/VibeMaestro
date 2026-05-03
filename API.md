@@ -1,6 +1,6 @@
 # VibeMaestro — API & Protocol
 
-> **Posture:** local-first, single-user (v1) · **Transport:** localhost HTTP + SSE + WebSocket · **Auth:** no-op in v1, pluggable · **Versioning:** `/api/v1`
+> **Posture:** local-first, single-user (v1) · **Transport (v1):** Electron IPC + tRPC · **Transport (v2):** HTTP + SSE + WebSocket localhost mirror · **Auth:** no-op in v1, pluggable · **Versioning:** `/api/v1`
 
 This file specifies the contract between the VibeMaestro UI and the local backend that drives agents. It also defines the agent-adapter shape — how a local CLI tool (Claude Code, Codex, …) is plugged in.
 
@@ -16,15 +16,36 @@ If a UI affordance described in `DESIGN.md` doesn't have a corresponding contrac
 
 ## 2. Transport
 
+The resource and event surfaces in §5–§7 are **transport-agnostic**. v1 ships them over Electron IPC; v2 mirrors the same surface over HTTP/SSE/WebSocket.
+
+### v1 (Electron IPC + tRPC)
+
+| Channel | Mechanism | Use |
+|---|---|---|
+| Request/response | tRPC over `ipcRenderer.invoke` ↔ `ipcMain.handle` (`trpc.invoke`) | All resource queries and mutations (`tasks.*`, `runs.*`, `agents.*`) |
+| One-way stream (server → client) | `webContents.send("event:<channel>", payload)` | Activity feed (`event:activity`), per-task event feeds (`event:task.<id>`) |
+| Bidirectional terminal | Two paired channels: `ipcMain.on("term:input", …)` and `webContents.send("term:output", bytes)`, plus `ipcRenderer.invoke("term:control", …)` for resize/signal | Per-task interactive terminal — xterm.js attached to PTY |
+
+No localhost HTTP server. No port discovery. No CORS. The renderer reaches main only through the preload `contextBridge`.
+
+### v2 (HTTP/SSE/WebSocket localhost mirror)
+
+When v2 ships an external integration surface for CLI tools, scripts, or MCP servers:
+
 | Channel | Protocol | Use |
 |---|---|---|
-| Request/response | HTTP/1.1 + JSON | All CRUD and action endpoints |
-| One-way stream (server → client) | **SSE** | Conductor-strip activity feed, per-task event feed |
-| Bidirectional terminal | **WebSocket** | Per-task interactive terminal (only) |
+| Request/response | HTTP/1.1 + JSON | Same routers as v1, exposed via Hono |
+| One-way stream | SSE | Same event channels as v1 |
+| Bidirectional terminal | WebSocket | Same frame protocol as the IPC binary channel |
 
-SSE is the default for streams. WebSocket appears exactly once — the per-task terminal — because terminals are bidirectional and require low-latency keystroke delivery. Everything else stays on SSE for simplicity.
+Base URL: `http://127.0.0.1:<port>/api/v1`. Port discovery writes to `~/.vibemaestro/port`.
 
-Base URL: `http://127.0.0.1:<port>/api/v1`
+### What this means for clients
+
+- **Renderer (v1):** uses the typed tRPC client over a custom IPC link. All envelope shapes from §5–§8 are preserved.
+- **External tools (v2 only):** speak HTTP/SSE/WS to the localhost mirror.
+
+A change to a resource or event in §5–§7 lands in both transports simultaneously by design.
 
 ## 3. Authentication (pluggable, no-op in v1)
 
@@ -472,6 +493,7 @@ Multiple WebSocket clients may attach to the same task simultaneously. All recei
 
 | TODO | Note |
 |---|---|
+| **HTTP/SSE/WebSocket localhost mirror** | External CLI tools, MCP servers, and scripts need to talk to a running VibeMaestro. v2 exposes the same routers via Hono on `127.0.0.1:<port>` with port discovery written to `~/.vibemaestro/port`. SSE replaces IPC event channels; WebSocket replaces the terminal IPC binary channel. Renderer code does not change. |
 | **Auth implementation** | Per-launch token in `Authorization: Bearer …`; WebSocket via `?token=…`. Middleware slot already exists; this is a swap. |
 | **Structured agent events** | Side-channel JSON event protocol (separate fd or JSON-tagged stdout) so `tool_calls_count`, per-tool-call events, and richer detail-panel content become available. |
 | **Team mode resources** | `User`, `Workspace`, `Membership`, `Mention`, presence channel. The `assignee` slot on Task is already reserved in DESIGN.md §6. |
