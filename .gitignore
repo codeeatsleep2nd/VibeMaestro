@@ -6,6 +6,11 @@ out/
 build/
 *.tsbuildinfo
 
+# Stale tsc-emitted .d.ts/.js next to .ts sources (we don't pre-build packages —
+# Vite bundles workspace TS sources directly).
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.js
+
 # Dependencies
 node_modules/
 
