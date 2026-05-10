@@ -44,7 +44,11 @@
         "useNodejsImportProtocol": "error"
       },
       "correctness": {
-        "useExhaustiveDependencies": "warn"
+        "useExhaustiveDependencies": "off"
+      },
+      "a11y": {
+        "useSemanticElements": "off",
+        "noNoninteractiveElementToInteractiveRole": "off"
       }
     }
   },

@@ -14,18 +14,29 @@ import { StatusIndicator } from "../status/StatusIndicator.js";
 type Props = {
   task: Task;
   agents: Map<string, Agent>;
+  onSelect?: (taskId: string) => void;
 };
 
-export function TaskCard({ task, agents }: Props) {
+export function TaskCard({ task, agents, onSelect }: Props) {
   const agent = agents.get(task.agent_id);
   const elapsed = formatRelative(task.updated_at);
 
   return (
     <article
+      onClick={() => onSelect?.(task.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect?.(task.id);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${task.id}: ${task.title}`}
       className={cn(
         "group relative bg-surface-raised rounded-md border border-border-subtle",
         "transition-[border-color,transform] duration-[var(--duration-fast)] ease-[var(--easing-standard)]",
-        "hover:border-border-default",
+        "hover:border-border-default cursor-pointer",
         "p-[var(--space-4)]",
       )}
       style={{

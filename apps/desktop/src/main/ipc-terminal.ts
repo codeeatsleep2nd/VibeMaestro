@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import { z } from "zod";
 import { childLogger } from "./lib/logger.js";
 import { runDispatcher } from "./services/run-dispatcher.js";
