@@ -950,6 +950,7 @@ If the spike surfaces a hard blocker (e.g., node-pty fundamentally won't build f
 - [ ] `better-sqlite3` and `node-pty` are externalized from the main bundle
 - [ ] `package.json` versions are pinned (no floating `^*`)
 - [ ] No unnecessary scope additions — plan #1 does not foreshadow plan #2's resources
+- [ ] `IMPLEMENTATION.md` updated to reflect this plan as shipped (plan-by-plan table + done-state checkboxes for Spike Acceptance and contract test)
 
 ---
 
@@ -969,15 +970,17 @@ If the spike surfaces a hard blocker (e.g., node-pty fundamentally won't build f
 
 Plan #1 is one design doc but ships as **three sequential PRs** to keep each diff reviewable. Each PR is independently green (typecheck + lint + test pass at every commit).
 
-### PR #1a — Monorepo + tooling (~10 files)
+### PR #1a — Monorepo + tooling + OSS basics (~10 files)
 - Root `package.json`, `bun.lockb`, `turbo.json`
 - `tooling/tsconfig/*` shared TypeScript configs
 - Biome config + scripts
 - `.gitignore` additions
 - `.github/workflows/ci.yml` (see "CI/CD" section below)
 - README "Getting started" stub
+- **`LICENSE`** — MIT license text, copyright `<current year> <github-handle-or-real-name>`
+- **`CONTRIBUTING.md`** — how to set up locally (`bun install`, `bun dev`), how to run tests (`bun typecheck && bun lint && bun test`), the plan order (read `IMPLEMENTATION.md` first), the spike-first gate (don't start plan #2 before plan #1c's Spike Acceptance passes), the conventional-commits requirement (`feat:`, `fix:`, etc.), and the link to `RELEASING.md` for releasers.
 
-**Acceptance:** `bun install && bun typecheck && bun lint && bun test` exits 0 in an empty workspace. CI passes on Ubuntu + macOS for a no-op PR.
+**Acceptance:** `bun install && bun typecheck && bun lint && bun test` exits 0 in an empty workspace. CI passes on Ubuntu + macOS for a no-op PR. `LICENSE` is detected by GitHub (the repo page shows "MIT License" badge). `CONTRIBUTING.md` reads correctly on github.com.
 
 ### PR #1b — Electron shell + IPC bridge (~15 files)
 - `apps/desktop/package.json`, electron-vite config

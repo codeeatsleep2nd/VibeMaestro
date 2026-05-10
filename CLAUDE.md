@@ -107,6 +107,16 @@ See plan #1's "Spike Acceptance" section. If any check fails, **stop and re-eval
 - **Don't foreshadow.** Plan #N implements only plan #N's scope. v2 TODOs (API.md §11) stay deferred until they're picked up.
 - **Don't expand the agent surface.** v1 supports two agents (Claude Code, Codex). Future agents (Gemini, GPT-5, Cursor, Aider) have reserved hues in `design-tokens.json` but **no adapter, no UI, no documentation** in v1.
 
+## Keeping IMPLEMENTATION.md current
+
+When a plan PR merges:
+
+1. Update `IMPLEMENTATION.md` §3's plan-by-plan table to mark the plan SHIPPED with the merge commit hash.
+2. Update `IMPLEMENTATION.md` §5's done-state checkboxes if the plan delivered an acceptance item (e.g., plan #1c flips the Spike Acceptance + contract test boxes; plan #4 flips the events-integration.test.ts box; plan #8 flips the E2E box; plan #9 flips the release-pipeline + tagged-release boxes).
+3. The plan's own Completion Checklist must include `[ ] IMPLEMENTATION.md updated to reflect this plan as shipped.` Treat this as part of the plan, not an afterthought.
+
+A stale master plan is worse than no master plan — it actively misleads. Do this in the same PR that lands the plan, not in a follow-up.
+
 ## When the design changes
 
 If you need to change the design system:
