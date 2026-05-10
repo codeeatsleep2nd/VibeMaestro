@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - run: bun install --frozen-lockfile
+
+      # Rebuild native modules (better-sqlite3, node-pty) against Electron's
+      # Node ABI. Required for the packaged binary to load them at runtime.
+      - name: Rebuild native modules
+        working-directory: apps/desktop
+        run: bun run --bun electron-builder install-app-deps
+
+      - name: Build renderer + main + preload
+        run: bun run desktop:build
+
+      - name: Package (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          # Notarization secrets — present only when configured. The
+          # electron-builder.yml has notarize:false by default, so unsigned
+          # dmgs are produced when these are missing.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: apps/desktop
+        run: bun run package -- --publish always
+
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: apps/desktop
+        run: bun run package -- --publish always
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Code-signing optional — when these aren't set, electron-builder
+          # produces an unsigned NSIS installer (SmartScreen warning on first run).
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        working-directory: apps/desktop
+        run: bun run package -- --publish always
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: dist-installers/*
+          if-no-files-found: warn
+          retention-days: 14

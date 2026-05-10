@@ -1,3 +1,47 @@
-
 # Build cache
 .turbo/
+dist/
+dist-installers/
+out/
+build/
+*.tsbuildinfo
+
+# Stale tsc-emitted .d.ts/.js next to .ts sources (we don't pre-build packages —
+# Vite bundles workspace TS sources directly).
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.js
+
+# Dependencies
+node_modules/
+
+# Generated tokens
+apps/desktop/src/renderer/styles/tokens.css
+site/styles/tokens.css
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# User data
+.vibemaestro/
+
+# Test outputs
+coverage/
+playwright-report/
+test-results/

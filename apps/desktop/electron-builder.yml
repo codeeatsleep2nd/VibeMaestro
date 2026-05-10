@@ -1,0 +1,64 @@
+appId: sh.vibemaestro.desktop
+productName: VibeMaestro
+copyright: Copyright © 2026 VibeMaestro contributors
+
+# Pack the bundled main + preload + renderer plus the workspace deps
+# (better-sqlite3 + node-pty native bindings) so a notarized .dmg can be
+# distributed standalone.
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+directories:
+  output: ../../dist-installers
+  buildResources: build
+
+files:
+  - "out/**/*"
+  - "package.json"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,*.flow,*.mjs.map}"
+  - "!**/node_modules/*/*.d.ts"
+  - "!**/test/**"
+
+extraResources:
+  # Migrations live in packages/db at dev time; pack them so first launch on
+  # a clean install can run the bootstrap migration.
+  - from: "../../packages/db/migrations"
+    to: "migrations"
+
+mac:
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  # If notarization isn't configured (no APPLE_ID env), electron-builder
+  # falls back to an unsigned dmg + the user gets the right-click-Open
+  # SmartScreen dance. Documented in RELEASING.md.
+  notarize: false
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  publisherName: VibeMaestro
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  category: Development
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+
+publish:
+  provider: github
+  releaseType: release

@@ -1,0 +1,62 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`appRouter contract snapshot of every procedure path + type 1`] = `
+[
+  [
+    "agents.delete",
+    "mutation",
+  ],
+  [
+    "agents.get",
+    "query",
+  ],
+  [
+    "agents.list",
+    "query",
+  ],
+  [
+    "agents.probe",
+    "mutation",
+  ],
+  [
+    "agents.probeAll",
+    "mutation",
+  ],
+  [
+    "health.ping",
+    "query",
+  ],
+  [
+    "tasks._simulateAgentExit",
+    "mutation",
+  ],
+  [
+    "tasks.approve",
+    "mutation",
+  ],
+  [
+    "tasks.cancel",
+    "mutation",
+  ],
+  [
+    "tasks.create",
+    "mutation",
+  ],
+  [
+    "tasks.get",
+    "query",
+  ],
+  [
+    "tasks.list",
+    "query",
+  ],
+  [
+    "tasks.reject",
+    "mutation",
+  ],
+  [
+    "tasks.run",
+    "mutation",
+  ],
+]
+`;

@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/renderer/**/*",
+    "src/preload/types.ts",
+    "src/main/routers/_app.ts",
+    "src/main/routers/health.ts",
+    "src/main/routers/tasks.ts",
+    "src/main/routers/agents.ts",
+    "src/main/services/task-service.ts",
+    "src/main/services/agent-service.ts",
+    "src/main/db.ts",
+    "src/main/trpc.ts",
+    "src/main/lib/logger.ts",
+    "src/main/middleware/auth.ts",
+    "src/main/config/paths.ts",
+    "../../packages/core/src/**/*",
+    "../../packages/db/src/**/*"
+  ]
+}

@@ -1,0 +1,54 @@
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "design-tokens.json"
+      - "scripts/generate-tokens.ts"
+      - ".github/workflows/deploy-site.yml"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+      - run: bun install --frozen-lockfile
+
+      # Regenerate tokens.css so the site stays in sync with design-tokens.json
+      # without anyone hand-editing the generated file.
+      - run: bun run tokens
+
+      - name: Build site
+        run: |
+          mkdir -p dist-site
+          cp -r site/* dist-site/
+          # The TypeScript scripts are emitted as-is — modern browsers handle
+          # them via type="module" with TS extensions ignored on the URL path.
+          # If we ever need actual compilation, swap this for a tsc/esbuild step.
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
