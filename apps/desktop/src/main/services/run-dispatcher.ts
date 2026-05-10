@@ -3,6 +3,7 @@ import { AppError } from "@vibemaestro/core";
 import { RunRepository } from "@vibemaestro/db";
 import {
   byteThrottle,
+  ScrollbackRing,
   type SpawnedRun,
   spawnAgent,
   type TranscriptWriter,
@@ -24,9 +25,36 @@ type LiveEntry = SpawnedRun & {
   progressTimer?: ReturnType<typeof setInterval>;
   taskId: string;
   agentId: string;
+  scrollback: ScrollbackRing;
+  cols: number;
+  rows: number;
 };
 
 const live = new Map<string, LiveEntry>();
+const dataListeners = new Map<string, Set<(chunk: string) => void>>();
+const closedListeners = new Map<string, Set<(info: { at: string }) => void>>();
+
+function notifyData(runId: string, chunk: string): void {
+  const set = dataListeners.get(runId);
+  if (!set) return;
+  for (const fn of set) {
+    try {
+      fn(chunk);
+    } catch {
+      // best-effort; one window's bad listener doesn't break the rest
+    }
+  }
+}
+
+function notifyClosed(runId: string, at: string): void {
+  const set = closedListeners.get(runId);
+  if (!set) return;
+  for (const fn of set) {
+    try {
+      fn({ at });
+    } catch {}
+  }
+}
 
 /**
  * Single source of truth for spawning, cancelling, and tracking live agent
@@ -82,8 +110,11 @@ export const runDispatcher = {
     }
     env.PATH = path;
 
-    const handle = spawnAgent({ runId, agent, prompt: taskPrompt, cwd, env });
-    const entry: LiveEntry = { ...handle, writer, taskId, agentId };
+    const cols = 120;
+    const rows = 30;
+    const handle = spawnAgent({ runId, agent, prompt: taskPrompt, cwd, env, cols, rows });
+    const scrollback = new ScrollbackRing();
+    const entry: LiveEntry = { ...handle, writer, taskId, agentId, scrollback, cols, rows };
     live.set(runId, entry);
     const startedAt = handle.startedAt;
     log.info({ run_id: runId, agent_id: agentId, pid: handle.pid }, "run started");
@@ -109,6 +140,8 @@ export const runDispatcher = {
 
     handle.ipty.onData((chunk) => {
       writer.write(chunk);
+      scrollback.push(chunk);
+      notifyData(runId, chunk);
       flush.add(Buffer.byteLength(chunk, "utf8"));
     });
 
@@ -126,6 +159,15 @@ export const runDispatcher = {
           : "failed";
 
       log.info({ run_id: runId, exit_code: exitCode, signal, outcome }, "run ended");
+
+      const endedAt = new Date().toISOString();
+      notifyClosed(runId, endedAt);
+      // GC scrollback + listener registries 30 s after run end so a
+      // re-attaching renderer can still replay the tail of a freshly-ended run.
+      setTimeout(() => {
+        dataListeners.delete(runId);
+        closedListeners.delete(runId);
+      }, 30_000);
 
       bus.emit({
         type: "run.ended",
@@ -201,7 +243,56 @@ export const runDispatcher = {
     return live.has(runId);
   },
 
-  getLive(runId: string): SpawnedRun | undefined {
+  /** Plan #5 — terminal-bridge surface. */
+  resize(runId: string, cols: number, rows: number): void {
+    const entry = live.get(runId);
+    if (!entry) return;
+    entry.ipty.resize(cols, rows);
+    entry.cols = cols;
+    entry.rows = rows;
+  },
+
+  sendInput(runId: string, data: string): void {
+    const entry = live.get(runId);
+    if (!entry) return;
+    entry.ipty.write(data);
+  },
+
+  sendSignal(runId: string, sig: "SIGINT" | "SIGTERM"): void {
+    const entry = live.get(runId);
+    if (!entry) return;
+    entry.ipty.kill(sig);
+  },
+
+  scrollbackSnapshot(runId: string): string | null {
+    return live.get(runId)?.scrollback.snapshot() ?? null;
+  },
+
+  onData(runId: string, fn: (chunk: string) => void): () => void {
+    let set = dataListeners.get(runId);
+    if (!set) {
+      set = new Set();
+      dataListeners.set(runId, set);
+    }
+    set.add(fn);
+    return () => {
+      set?.delete(fn);
+    };
+  },
+
+  onClosed(runId: string, fn: (info: { at: string }) => void): () => void {
+    let set = closedListeners.get(runId);
+    if (!set) {
+      set = new Set();
+      closedListeners.set(runId, set);
+    }
+    set.add(fn);
+    return () => {
+      set?.delete(fn);
+    };
+  },
+
+  getLive(runId: string): LiveEntry | undefined {
     return live.get(runId);
   },
 
