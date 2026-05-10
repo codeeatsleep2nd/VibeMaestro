@@ -1,6 +1,7 @@
 import { AppError, newRunId, type Task, type TaskCreateInput, transition } from "@vibemaestro/core";
 import { AgentRepository, RunRepository, TaskRepository } from "@vibemaestro/db";
 import { getDb } from "../db.js";
+import { bus } from "../lib/event-bus.js";
 import { childLogger } from "../lib/logger.js";
 import { runDispatcher } from "./run-dispatcher.js";
 
@@ -72,7 +73,8 @@ export function createTaskService() {
     const result = db.transaction(() => {
       const task = taskRepo.findById(id);
       if (!task) throw new AppError("not_found", `Task "${id}" not found`);
-      const newStatus = transition(task.status, "run");
+      const fromStatus = task.status;
+      const newStatus = transition(fromStatus, "run");
       const at = nowIso();
       const runId = newRunId();
       runRepo.insert({
@@ -92,7 +94,17 @@ export function createTaskService() {
         run_id: runId,
         prompt: task.prompt,
         agent_id: task.agent_id,
+        from: fromStatus,
+        at,
       };
+    });
+
+    bus.emit({
+      type: "task.state_changed",
+      task_id: id,
+      from: result.from,
+      to: result.task.status,
+      at: result.at,
     });
 
     // Fire-and-forget — the dispatcher's onExit handler is responsible for
@@ -133,25 +145,41 @@ export function createTaskService() {
   }
 
   function approve(id: string): Task {
-    return db.transaction(() => {
+    const updated = db.transaction(() => {
       const task = taskRepo.findById(id);
       if (!task) throw new AppError("not_found", `Task "${id}" not found`);
       const newStatus = transition(task.status, "approve");
       const at = nowIso();
       taskRepo.updateStatus(id, newStatus, task.current_run_id, at);
-      return { ...task, status: newStatus, updated_at: at };
+      return { from: task.status, task: { ...task, status: newStatus, updated_at: at }, at };
     });
+    bus.emit({
+      type: "task.state_changed",
+      task_id: id,
+      from: updated.from,
+      to: updated.task.status,
+      at: updated.at,
+    });
+    return updated.task;
   }
 
   function reject(id: string): Task {
-    return db.transaction(() => {
+    const updated = db.transaction(() => {
       const task = taskRepo.findById(id);
       if (!task) throw new AppError("not_found", `Task "${id}" not found`);
       const newStatus = transition(task.status, "reject");
       const at = nowIso();
       taskRepo.updateStatus(id, newStatus, task.current_run_id, at);
-      return { ...task, status: newStatus, updated_at: at };
+      return { from: task.status, task: { ...task, status: newStatus, updated_at: at }, at };
     });
+    bus.emit({
+      type: "task.state_changed",
+      task_id: id,
+      from: updated.from,
+      to: updated.task.status,
+      at: updated.at,
+    });
+    return updated.task;
   }
 
   /**
@@ -167,9 +195,18 @@ export function createTaskService() {
       const at = nowIso();
       taskRepo.updateStatus(id, newStatus, task.current_run_id, at);
       return {
+        from: task.status,
         task: { ...task, status: newStatus, updated_at: at },
         run_id: task.current_run_id,
+        at,
       };
+    });
+    bus.emit({
+      type: "task.state_changed",
+      task_id: id,
+      from: result.from,
+      to: result.task.status,
+      at: result.at,
     });
     if (result.run_id) runDispatcher.cancel(result.run_id);
     return result.task;

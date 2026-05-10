@@ -2,6 +2,7 @@ import { type Agent, AppError } from "@vibemaestro/core";
 import { AgentRepository, TaskRepository } from "@vibemaestro/db";
 import { probeAgent } from "@vibemaestro/pty-daemon";
 import { getDb } from "../db.js";
+import { bus } from "../lib/event-bus.js";
 import { childLogger } from "../lib/logger.js";
 import { resolveShellPath } from "../lib/path-helper.js";
 
@@ -41,7 +42,15 @@ export function createAgentService() {
       { agent_id: id, available: result.available, version: result.version, error: result.error },
       "probe complete",
     );
+    const previous = agent.available;
     repo.markProbed(id, result.available, result.version);
+    if (previous !== result.available) {
+      bus.emit({
+        type: "agent.availability_changed",
+        agent_id: id,
+        available: result.available,
+      });
+    }
     return require_(id);
   }
 

@@ -5,14 +5,16 @@ import { ConductorStrip } from "./components/conductor/ConductorStrip.js";
 import { BoardEmptyState } from "./components/empty/BoardEmptyState.js";
 import { CreateTaskModal } from "./components/empty/CreateTaskModal.js";
 import { Topbar } from "./components/topbar/Topbar.js";
+import { useEventStream } from "./hooks/useEventStream.js";
 import { useAgents, useTasks } from "./hooks/useTasks.js";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
+      // Plan #4: events push state into the cache, so we don't need polling.
+      // Keep a generous stale time since the bus is the source of freshness.
+      staleTime: 60_000,
       refetchOnWindowFocus: false,
-      refetchInterval: 2_500,
       retry: 1,
     },
   },
@@ -27,6 +29,7 @@ export function App() {
 }
 
 function Shell() {
+  useEventStream();
   const tasksQuery = useTasks();
   const agentsQuery = useAgents();
   const [createOpen, setCreateOpen] = useState(false);

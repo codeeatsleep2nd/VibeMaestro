@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { AppError } from "@vibemaestro/core";
+import { RunRepository } from "@vibemaestro/db";
 import {
   byteThrottle,
   type SpawnedRun,
@@ -8,6 +9,8 @@ import {
   transcriptWriter,
 } from "@vibemaestro/pty-daemon";
 import { runDir, transcriptPath } from "../config/paths.js";
+import { getDb } from "../db.js";
+import { bus } from "../lib/event-bus.js";
 import { childLogger } from "../lib/logger.js";
 import { resolveShellPath } from "../lib/path-helper.js";
 import { createAgentService } from "./agent-service.js";
@@ -18,6 +21,9 @@ const log = childLogger({ module: "run-dispatcher" });
 type LiveEntry = SpawnedRun & {
   writer: TranscriptWriter;
   killTimer?: ReturnType<typeof setTimeout>;
+  progressTimer?: ReturnType<typeof setInterval>;
+  taskId: string;
+  agentId: string;
 };
 
 const live = new Map<string, LiveEntry>();
@@ -56,6 +62,13 @@ export const runDispatcher = {
       );
     }
 
+    // Look up which task this run belongs to so we can include task_id in events.
+    const { db } = getDb();
+    const runRepo = new RunRepository(db);
+    const runRow = runRepo.findById(runId);
+    if (!runRow) throw new AppError("not_found", `Run "${runId}" not found`);
+    const taskId = runRow.task_id;
+
     const cwd = agent.cwd ?? process.env.HOME ?? process.cwd();
     mkdirSync(runDir(runId), { recursive: true, mode: 0o700 });
     const writer = transcriptWriter(transcriptPath(runId));
@@ -70,9 +83,29 @@ export const runDispatcher = {
     env.PATH = path;
 
     const handle = spawnAgent({ runId, agent, prompt: taskPrompt, cwd, env });
-    const entry: LiveEntry = { ...handle, writer };
+    const entry: LiveEntry = { ...handle, writer, taskId, agentId };
     live.set(runId, entry);
+    const startedAt = handle.startedAt;
     log.info({ run_id: runId, agent_id: agentId, pid: handle.pid }, "run started");
+
+    bus.emit({
+      type: "run.started",
+      task_id: taskId,
+      run_id: runId,
+      agent_id: agentId,
+      at: startedAt.toISOString(),
+    });
+
+    // 1Hz progress tick — drives the conductor strip's elapsed/byte counters.
+    entry.progressTimer = setInterval(() => {
+      bus.emit({
+        type: "run.progress",
+        task_id: taskId,
+        run_id: runId,
+        elapsed_ms: Date.now() - startedAt.getTime(),
+        bytes_emitted: writer.bytesWritten,
+      });
+    }, 1000);
 
     handle.ipty.onData((chunk) => {
       writer.write(chunk);
@@ -83,6 +116,7 @@ export const runDispatcher = {
       flush.flushNow();
       void writer.close();
       if (entry.killTimer) clearTimeout(entry.killTimer);
+      if (entry.progressTimer) clearInterval(entry.progressTimer);
       live.delete(runId);
 
       const outcome: "succeeded" | "failed" | "cancelled" = entry.cancelled
@@ -92,6 +126,15 @@ export const runDispatcher = {
           : "failed";
 
       log.info({ run_id: runId, exit_code: exitCode, signal, outcome }, "run ended");
+
+      bus.emit({
+        type: "run.ended",
+        task_id: taskId,
+        run_id: runId,
+        exit_code: exitCode ?? null,
+        duration_ms: Date.now() - startedAt.getTime(),
+        outcome,
+      });
 
       try {
         runService.markFinished(runId, {

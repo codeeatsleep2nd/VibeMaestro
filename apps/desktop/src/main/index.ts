@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import { initDb } from "./db.js";
 import { registerTrpcIpc } from "./ipc.js";
+import { registerEventBridges } from "./ipc-events.js";
 import { logger } from "./lib/logger.js";
 import { registerLifecycleHooks } from "./lifecycle.js";
 import { seedIfEmpty } from "./seed.js";
@@ -11,6 +12,7 @@ async function bootstrap() {
   initDb();
   seedIfEmpty();
   registerTrpcIpc();
+  registerEventBridges();
   registerLifecycleHooks();
 
   await app.whenReady();
