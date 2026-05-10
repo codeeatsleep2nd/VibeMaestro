@@ -25,7 +25,6 @@ const PANEL_LABELS: Record<Tab, string> = {
 export function DetailPanel({ task, agents, onClose }: Props) {
   const [tab, setTab] = useState<Tab>("terminal");
   // Reset tab to terminal when task changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: only key on task.id
   useEffect(() => {
     setTab("terminal");
   }, [task?.id]);

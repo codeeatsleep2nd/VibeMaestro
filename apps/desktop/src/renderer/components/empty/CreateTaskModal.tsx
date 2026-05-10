@@ -9,9 +9,10 @@ type Props = {
   open: boolean;
   onClose: () => void;
   agents: Agent[];
+  initialPrompt?: string | null;
 };
 
-export function CreateTaskModal({ open, onClose, agents }: Props) {
+export function CreateTaskModal({ open, onClose, agents, initialPrompt }: Props) {
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [agentId, setAgentId] = useState<string>(agents[0]?.id ?? "claude-code");
@@ -20,13 +21,21 @@ export function CreateTaskModal({ open, onClose, agents }: Props) {
 
   useEffect(() => {
     if (!open) return;
+    if (initialPrompt) {
+      setPrompt(initialPrompt);
+      // Use the first sentence (or first 80 chars) as the title hint.
+      const trimmed = initialPrompt.trim();
+      const firstStop = trimmed.search(/[.!?\n]/);
+      const hint = firstStop > 0 ? trimmed.slice(0, firstStop) : trimmed.slice(0, 80);
+      if (!title.trim()) setTitle(hint);
+    }
     setTimeout(() => inputRef.current?.focus(), 60);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, initialPrompt, title]);
 
   if (!open) return null;
 

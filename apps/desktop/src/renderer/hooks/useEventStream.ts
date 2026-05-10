@@ -56,7 +56,6 @@ export function useEventStream() {
       if (cleanup) cleanup();
     };
     // qc is stable from useQueryClient — we don't need to re-subscribe on each render.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: qc is stable across renders
   }, []);
 }
 
