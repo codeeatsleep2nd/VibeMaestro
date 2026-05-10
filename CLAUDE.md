@@ -42,14 +42,16 @@ Pin every version; no floating `^*` on top-level deps.
 Plans run in numeric order. Each plan has a "Plan-#N → Plan-#(N+1) contract" Notes section that defines the seam.
 
 ```
-#1 backend skeleton + persistence + IPC bridge
-#2 task + run resources + state machine
-#3 agent registry + PTY daemon
-#4 internal event bus + IPC streams
-#5 terminal IPC bridge
-#6 frontend shell + board + theme
-#7 detail panel + xterm.js + diff/transcript
-#8 polish (empty states, create task, ⌘K, keyboard, toasts)
+#1  backend skeleton + persistence + IPC bridge   (ships as 3 PRs: 1a tooling + CI,
+                                                    1b electron+IPC, 1c DB+spike+contract)
+#2  task + run resources + state machine
+#3  agent registry + PTY daemon
+#4  internal event bus + IPC streams
+#5  terminal IPC bridge
+#6  frontend shell + board + theme
+#7  detail panel + xterm.js + diff/transcript
+#8  polish + Playwright-Electron happy-path E2E
+#9  packaging + signing + auto-update + release pipeline
 ```
 
 ### Spike-first gate (before plan #2)
@@ -80,6 +82,14 @@ See plan #1's "Spike Acceptance" section. If any check fails, **stop and re-eval
 - **State transitions are server-enforced.** The client never sends `status: "running"`; it calls action endpoints. (API.md §5.1)
 - **No localhost HTTP server in v1.** All renderer ↔ main traffic is Electron IPC. (API.md §2)
 - **Terminal bytes use a dedicated IPC channel**, not the typed event bus. (plan #5)
+- **Database access goes through repositories.** Services consume `TaskRepository`, `RunRepository`, `AgentRepository` from `packages/db/src/repositories/*`. No `import { drizzle }` or `import { sqliteTable }` outside `packages/db/`. SQLite-specific PRAGMAs live in `packages/db/src/dialects/sqlite-init.ts`. v1 ships SQLite; the repository pattern keeps a future postgres swap to a driver + init replacement, not a multi-week refactor. (plan #1c)
+- **Contracts are Zod schemas in `@vibemaestro/core/contracts`.** Resources, event payloads, and the error envelope all share a single source of truth. tRPC routers consume them via `.input()` / `.output()`. The `contract.test.ts` snapshot in plan #1c locks the surface; intentional changes show up as snapshot diffs in PRs. v2 HTTP/SSE/WebSocket mirror reads the same schemas. (plan #1c)
+
+### Perf budgets
+- **Board:** renders < 100 tasks comfortably; 100-500 degrades but stays usable; > 500 unsupported in v1. Add `@tanstack/react-virtual` per lane when any single user crosses 100 tasks. (plan #6 + TODOS.md)
+- **Conductor strip:** ≤ 8 active rows; the +N overflow chip handles the rest (DESIGN.md §10).
+- **PTY scrollback:** 32 KB per task ring (configurable). Multiple attached windows share the ring. (plan #5)
+- **Event ring buffer:** 1000 entries; older replays return `{ truncated: true }` and the renderer re-fetches. (plan #4)
 
 ### Tests
 - Plans land with their tests in the same PR. `bun test` is the runner (Vitest-compatible).

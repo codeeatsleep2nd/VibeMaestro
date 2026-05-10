@@ -54,6 +54,12 @@ Detail-panel meta strip mentions cost and model. v1 leaves these `null`. v2 coll
 **Why:** DESIGN.md §11 specifies behavior down to 320px. Electron desktop doesn't reach there. The mobile breakpoints exist for the v2 web mirror.
 **What:** Add a one-line note to DESIGN.md §8 board grid: "Mobile breakpoints below 1024px target the v2 web mirror; the v1 Electron app's minimum window size is 1280×800."
 
+### [P2] Board virtualization at 100+ tasks (added by eng review 2026-05-09)
+**Why:** Plan #6 ships without virtualization. CLAUDE.md commits to a perf budget: < 100 tasks comfortable, 100-500 degraded but usable, > 500 unsupported. When any single user crosses 100 tasks routinely, virtualization becomes necessary.
+**What:** Add `@tanstack/react-virtual` per lane in `apps/desktop/src/renderer/components/board/Lane.tsx`. Preserve hover/focus animation registration and the success-pulse target lookup (a virtualized item that's scrolled out of view at completion time still pulses when scrolled back in).
+**Cost:** ~half day human / ~30 min CC. Adds ~6 files of test coverage.
+**Depends on:** Real load — don't add speculatively. Promote when a user reports it or when telemetry (when added) shows it.
+
 ### [P2] Mobile a11y promotion (added by design review 2026-05-09)
 **Why:** v1 explicitly scopes mobile (<640px) as read-only with sub-44px touch targets (DESIGN.md §13). When the v2 web mirror or team-mode field use ships, mobile becomes interactive and the existing chip/dot/keychip sizes fail WCAG 2.5.5.
 **What:** Rewrite DESIGN.md §13 "Touch targets" to require 44×44 tap zones on every interactive element below 640px. Add to the mobile lane-switcher: real mutation affordances (long-press for context menu, swipe gestures for approve/reject), task creation as a sheet rather than a modal. Re-spec the agent chip with a tap-zone wrapper that doesn't change its visual size.

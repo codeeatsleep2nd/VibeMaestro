@@ -965,6 +965,114 @@ If the spike surfaces a hard blocker (e.g., node-pty fundamentally won't build f
 | Sandbox + contextIsolation breaks an integration | Low | Medium | Stick to the bridge pattern; never disable either flag |
 | Migration folder path resolution differs in dev vs packaged | Medium | Medium | `import.meta.url` + `electron-vite` rewriting handles both; documented in Task 13 GOTCHA |
 
+## Recommended PR split (added by eng review 2026-05-09)
+
+Plan #1 is one design doc but ships as **three sequential PRs** to keep each diff reviewable. Each PR is independently green (typecheck + lint + test pass at every commit).
+
+### PR #1a — Monorepo + tooling (~10 files)
+- Root `package.json`, `bun.lockb`, `turbo.json`
+- `tooling/tsconfig/*` shared TypeScript configs
+- Biome config + scripts
+- `.gitignore` additions
+- `.github/workflows/ci.yml` (see "CI/CD" section below)
+- README "Getting started" stub
+
+**Acceptance:** `bun install && bun typecheck && bun lint && bun test` exits 0 in an empty workspace. CI passes on Ubuntu + macOS for a no-op PR.
+
+### PR #1b — Electron shell + IPC bridge (~15 files)
+- `apps/desktop/package.json`, electron-vite config
+- Main entry, window factory, preload + `contextBridge`
+- Custom tRPC IPC link (server side: `trpc.invoke` handler; client side: link factory)
+- `health` router with the ping procedure
+- Renderer stub UI ("ping main" button)
+- AuthContext middleware (no-op v1), timing middleware, error formatter, AppError
+- Logger (pino + child)
+- Vitest setup file
+
+**Acceptance:** `bun dev` opens an Electron window, "ping main" round-trips through the IPC bridge and renders `{ status: "ok", … }`. AppError + tRPC envelope unit tests pass.
+
+### PR #1c — Persistence + spike gate (~13 files)
+- `packages/db` (Drizzle + better-sqlite3) — see "Database portability discipline" below
+- `packages/db/src/dialects/sqlite-init.ts` — WAL + synchronous + autocheckpoint pragmas
+- Migration runner (transactional, idempotent)
+- Empty `0000_init.sql`
+- `config/paths.ts` resolving `~/.vibemaestro/`
+- DB initialization in main entry
+- Contract test scaffolding (see "Contract test (transport-agnostic surface)" below)
+- The Spike Acceptance smoke (PTY echo, ABI rebuild verify, macOS GUI PATH probe)
+
+**Acceptance:** the Spike Acceptance criteria below pass. SQLite WAL mode confirmed via `PRAGMA journal_mode;` returning `wal`. Contract-test snapshot file is committed.
+
+After PR #1c lands and the spike acceptance is green, plan #2 starts.
+
+## CI/CD (added by eng review 2026-05-09 — lives in PR #1a)
+
+`.github/workflows/ci.yml` runs on every PR and on pushes to `main`:
+
+```yaml
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.x
+      - run: bun install --frozen-lockfile
+      - run: bun typecheck
+      - run: bun lint
+      - run: bun test
+```
+
+**Why both Ubuntu and macOS:** the native modules (`better-sqlite3`, `node-pty`) rebuild against the platform's Node ABI. A passing macOS-only run won't catch a Linux ABI break. Windows is added in plan #9 (release pipeline) when packaging requires it.
+
+**What this catches starting at PR #2:** any plan that breaks typecheck, lint, or unit tests fails the PR before merge. Without CI, plans #2-#8 land based on the implementer's local checks alone.
+
+**Build-installer / E2E / publish workflows** are deferred to plan #9.
+
+## Database portability discipline (added by eng review 2026-05-09 — lives in PR #1c)
+
+v1 ships SQLite. The data layer is architected so a future postgres swap is a driver-and-init change, not a multi-week refactor.
+
+### Five rules (enforced by code review and the CLAUDE.md "Database access" rule)
+
+1. **Repository pattern.** All data access goes through `packages/db/src/repositories/*.ts`. Services consume `TaskRepository`, `RunRepository`, `AgentRepository` interfaces — never `import { drizzle }` or `import { sqliteTable }` outside `packages/db/`.
+2. **Portable Drizzle idioms only in repositories.** Use `.onConflictDoNothing()` instead of raw `INSERT OR IGNORE`. Use Drizzle's `relations()` for joins. Use ULIDs (already specified in plan #2) and a sequence-table for the `VM-N` slug (already specified). No `INTEGER PRIMARY KEY AUTOINCREMENT`.
+3. **SQLite-specific init isolated.** All `PRAGMA` statements live in `packages/db/src/dialects/sqlite-init.ts` and run on connection open. Postgres swap = replace this file with `postgres-init.ts` (or skip; pg defaults are fine).
+4. **Migration directory split.** `packages/db/migrations/sqlite/*.sql` ships in v1. `packages/db/migrations/postgres/*.sql` is created when needed (drizzle-kit emits both). The migration runner picks based on `DATABASE_URL` scheme (`sqlite:///path` vs `postgres://…`).
+5. **CHECK constraints documented as dialect-specific.** Plan #2's "edit migration to add CHECK" GOTCHA gets a follow-up note: when generating the postgres migration, regenerate from the Drizzle schema rather than porting the SQL by hand.
+
+### WAL mode (sqlite-init.ts)
+
+```ts
+db.pragma("journal_mode = WAL");
+db.pragma("synchronous = NORMAL");
+db.pragma("wal_autocheckpoint = 1000");
+db.pragma("foreign_keys = ON");
+```
+
+WAL gives crash recovery + concurrent reader-during-write (matters for plan #3's PTY byte-counter writing while plan #2's UI mutations run). Orthogonal to portability; postgres has its own durability defaults.
+
+## Contract test (transport-agnostic surface — added by eng review 2026-05-09 — lives in PR #1c)
+
+API.md §5-§7 are documented as transport-agnostic. v1 ships them over Electron IPC; v2 will mirror over HTTP/SSE/WebSocket. Without a contract test, the v2 mirror can silently drift from the v1 IPC contract.
+
+**What ships in PR #1c:**
+- `packages/core/src/contracts/` — Zod schemas for every resource (`Task`, `Run`, `Agent`), every event payload (`run.started`, `run.progress`, `run.ended`, `task.state_changed`, `agent.availability_changed`), and the error envelope. (Plans #2/#3/#4 already specify these as Zod; this rule says: keep them in `@vibemaestro/core/contracts`, don't inline them in router files.)
+- `apps/desktop/test/contract.test.ts` — dumps the full tRPC router shape to JSON schema, snapshots to `apps/desktop/test/__snapshots__/contract.json`, fails if the snapshot drifts unintentionally.
+- Routers (`tasks`, `runs`, `agents`) consume schemas from `@vibemaestro/core/contracts` via `.input(taskCreateSchema)` / `.output(taskSchema)`. Future v2 HTTP layer consumes the same schemas.
+
+**Maintenance:** when a contract changes intentionally, the implementer runs `bun test --update-snapshots` and the diff IS the API change. Reviewers see the contract drift in the snapshot diff.
+
 ## Notes
 
 ### Roadmap (the 8 plans)
@@ -978,7 +1086,8 @@ If the spike surfaces a hard blocker (e.g., node-pty fundamentally won't build f
 | 5 | Terminal IPC bridge | xterm.js attached to PTY via binary IPC channel + control messages, scrollback ring |
 | 6 | Frontend shell + board + theme | React + Tailwind 4 + design tokens, lanes, cards, conductor strip, theme switch |
 | 7 | Detail panel + xterm.js + Diff/Transcript | DESIGN.md §10 Terminal component, §11 detail panel |
-| 8 | Polish | Empty/loading/error states, command palette, keyboard shortcuts |
+| 8 | Polish + Playwright-Electron E2E | Empty/loading/error states, command palette, keyboard shortcuts, full happy-path E2E |
+| **9** | **Packaging + signing + auto-update + release pipeline** | electron-builder, macOS notarization, electron-updater, GitHub Releases, version-bump |
 
 ### v2 fallback policy (locked with plan #1)
 

@@ -564,7 +564,27 @@ export function useFocusTrap(ref: RefObject<HTMLElement>, active: boolean) {
 - **ACTION:** Update `README.md` with a "Keyboard shortcuts" section.
 - **VALIDATE:** Reads correctly.
 
-### Task 16: Final validation
+### Task 16: Playwright-Electron full happy-path E2E (added by eng review 2026-05-09)
+
+The cross-plan integration safety net. Single end-to-end test that walks the full v1 happy path. Catches regressions across plans #2-#8 in one signal.
+
+- **IMPLEMENT:** Add `@playwright/test` and `playwright` (with Electron support) to `apps/desktop` devDependencies. Create `apps/desktop/e2e/happy-path.e2e.ts` and `apps/desktop/playwright.config.ts`. Use Playwright's `_electron.launch()` API to spawn the dev build.
+- **TEST SCRIPT:**
+  1. Launch the Electron app with a tempdir for `~/.vibemaestro/` so the test starts from empty board.
+  2. Seed the DB at startup with one agent: `id: "echo", command: "/bin/echo", args: ["{{prompt}}"], prompt_via: "arg"` (a fake agent that prints the prompt and exits 0).
+  3. Assert the empty board renders ("No tasks yet.").
+  4. Press ⌘N, fill the create-task form (`title: "smoke"`, `prompt: "hello world"`, `agent: echo`), submit.
+  5. Assert the card appears in Backlog with `VM-001`.
+  6. Press ⌘⏎ (or click Run), assert the card moves to Running with the pulse class.
+  7. Wait for the card to move to Reviewing (echo exits immediately; total time < 2s).
+  8. Click the card, assert the detail panel opens, asserts the Terminal tab shows "hello world" in the xterm container, asserts the meta strip shows the byte count.
+  9. Click Approve, assert the card moves to Complete and the success-pulse class is applied for 480ms.
+  10. Take a screenshot at the end and save to `apps/desktop/e2e/__screenshots__/happy-path-final.png` for visual sanity.
+- **CI:** Add to `.github/workflows/ci.yml` (from plan #1a) as a new job that runs on Ubuntu only (Playwright's xvfb support); macOS runs on `pull_request` against `main` only (the Electron-on-macOS Playwright job can be flaky in headless mode; add as `continue-on-error: true` initially and stabilize).
+- **GOTCHA:** Playwright + Electron requires the app to be either packaged or runnable via `electron .`. Use the `electron-vite preview` build output for the test target (deterministic, no HMR). Document the test command: `bun run test:e2e`.
+- **VALIDATE:** Test passes locally with `bun run test:e2e`. Test fails predictably when, e.g., plan #4's event bus is wired wrong (card never moves to Reviewing) or plan #7's Approve button is disabled at the wrong state.
+
+### Task 17: Final validation
 
 - **ACTION:** Per "Validation Commands" below.
 
