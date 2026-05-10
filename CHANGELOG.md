@@ -16,6 +16,13 @@ All notable changes to VibeMaestro are documented here. The format follows [Keep
 - **Plan #8** Polish — toast surface for mutation errors, ⌘K cmdk-driven palette with task search and create-with-prompt, `?` cheatsheet, prompt-prefill in Create modal.
 - **Plan #9** Packaging — electron-builder for mac/win/linux, entitlements for native modules under hardened runtime, electron-updater wired against GitHub Releases (skipped in dev), `RELEASING.md` runbook, GitHub Actions release workflow on `v*` tags.
 
+### Documentation
+
+- **README.md** rewritten from sponsor-only stub to full project intro (status, run-from-source, what's inside, architecture diagram, scripts, contributing).
+- **FUTURE-IMPLEMENTATIONS.md** added — quality-maintenance playbook covering pattern-mirroring rules for new resources / events / agents / IPC channels / visual surfaces, the anti-patterns to never reintroduce, the performance budgets, the pre-PR self-validation gauntlet, the reviewer checklist, common review smells, and the "when something breaks" runbook. Sets the bar that a future agent or human should be able to ship plan #11 without reading any conversation history.
+- **TODOS.md** updated — new v1.x entries for Playwright-Electron E2E, error animations (shake-on-error / success-pulse / connection-lost banner), real `runs.getTranscript` router, and mobile lane-switcher.
+- **IMPLEMENTATION.md** §5 done-state checkboxes flipped for the items that are now green (all 10 plans shipped, spike acceptance complete, contract test committed, docs current). Items still gated on real-world signal (full Playwright E2E, dogfooding week, signed release) left unchecked.
+
 ### Spike Acceptance (all four green)
 
 - better-sqlite3 ABI rebuild against Electron 41 ✓

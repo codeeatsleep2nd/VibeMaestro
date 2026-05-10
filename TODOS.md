@@ -2,7 +2,29 @@
 
 Deferred work, ordered by horizon. Items here are not roadmap commitments — they're the explicit "considered, not now" record.
 
-## v1.x (post plan #8)
+## v1.x — post the impl-01 merge
+
+### [P1] Playwright-Electron happy-path E2E
+**Why:** Plan #8 explicitly defers this. `bun test` can't load Electron-ABI native modules (better-sqlite3, node-pty) so unit-level tests don't cover the full IPC + PTY lifecycle. A real E2E that walks: empty board → create task → run → watch terminal → approve → see card move to Complete is the cross-plan integration safety net the spec asks for.
+**Cost:** ~1 day human / ~3 hr CC. Adds `@playwright/test` + `playwright-core` with Electron support; `apps/desktop/e2e/happy-path.e2e.ts`; a CI matrix job for E2E on macOS.
+**Depends on:** First post-v0.1.0 maintenance cycle or first reported regression.
+
+### [P1] Error animations — shake-on-error, success-pulse on review→complete, connection-lost banner
+**Why:** Plan #8 ships toasts but not the per-card animations DESIGN.md §10 specifies. A task moving to `error` deserves a 220ms shake; `reviewing → complete` deserves a brief pulse; lost main-process connection deserves a banner instead of silent failure.
+**Cost:** ~half day human / ~30 min CC. Touches `TaskCard.tsx` (consume `useEventStream`'s lastSeenId), `App.tsx` (connection-lost detection via the IPC bridge availability ref).
+**Depends on:** Playwright E2E so the animations can be asserted, not just visually inspected.
+
+### [P2] Real `runs.getTranscript` router
+**Why:** Plan #7's TranscriptTab is a placeholder. Reads from `~/.vibemaestro/runs/<run_id>/transcript` should be exposed as a tRPC procedure so the panel works for ended runs (the scrollback ring's 30s grace window is too short for the historic-review use case).
+**Cost:** ~half day human / ~30 min CC. Adds `runs.getTranscript` to API.md §5.2.1, a `runs.ts` router, wires TranscriptTab to read it.
+**Depends on:** Real usage — most v1 sessions stay attached to the live terminal.
+
+### [P2] Mobile lane-switcher (<640px)
+**Why:** DESIGN.md §11 specifies a sticky LaneSwitcher chip row for narrow widths. Electron's minimum window is 1280×800 so this never fires today, but plan #10's landing site (and a v2 web mirror) will. Read-only is fine for v1; full mutation UX is the separate v2 item below.
+**Cost:** ~half day human / ~1 hr CC.
+**Depends on:** v2 web mirror landing OR a v1.x decision to support smaller desktop windows.
+
+## v1.x — pre-existing carry-over
 
 ### [P2] Design `paper-light` fully — promote from internal verifier to shipping theme
 **Why:** DESIGN.md §15 forbids shipping a half-designed second theme. Today `paper-light` is a stub; the toggle is hidden in v1 (per CEO review 2026-05-09 D3). When there's a real product reason for a second theme, run a dedicated design pass.
