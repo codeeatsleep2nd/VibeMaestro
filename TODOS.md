@@ -52,4 +52,10 @@ Detail-panel meta strip mentions cost and model. v1 leaves these `null`. v2 coll
 
 ### [P3] Mobile breakpoint scoping note in DESIGN.md
 **Why:** DESIGN.md §11 specifies behavior down to 320px. Electron desktop doesn't reach there. The mobile breakpoints exist for the v2 web mirror.
-**What:** Add a one-line note to DESIGN.md §8 board grid: "Mobile breakpoints below 1024px target the v2 web mirror; the v1 Electron app's minimum window size is 1024×640."
+**What:** Add a one-line note to DESIGN.md §8 board grid: "Mobile breakpoints below 1024px target the v2 web mirror; the v1 Electron app's minimum window size is 1280×800."
+
+### [P2] Mobile a11y promotion (added by design review 2026-05-09)
+**Why:** v1 explicitly scopes mobile (<640px) as read-only with sub-44px touch targets (DESIGN.md §13). When the v2 web mirror or team-mode field use ships, mobile becomes interactive and the existing chip/dot/keychip sizes fail WCAG 2.5.5.
+**What:** Rewrite DESIGN.md §13 "Touch targets" to require 44×44 tap zones on every interactive element below 640px. Add to the mobile lane-switcher: real mutation affordances (long-press for context menu, swipe gestures for approve/reject), task creation as a sheet rather than a modal. Re-spec the agent chip with a tap-zone wrapper that doesn't change its visual size.
+**Cost:** ~half day human / ~30 min CC for spec; implementation cost depends on whether v2 web-mirror or team-mode lands first.
+**Depends on:** v2 web mirror or team-mode shipping. Don't promote speculatively.

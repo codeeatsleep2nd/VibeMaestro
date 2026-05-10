@@ -9,6 +9,49 @@ VibeMaestro is an **agent-first** project management dashboard. A human creates 
 1. **Agents are first-class citizens.** Every task card has to answer "which agent is on this, what is it doing right now, how long has it been at it." The system needs an agent-identity layer that scales to N agents without devolving into emoji or stock avatar circles.
 2. **The board is the product.** Marketing/setup pages are secondary. The system optimizes for dense, scannable, status-rich task boards — not hero sections.
 
+## 1.5. First-task journey
+
+Every component decision below is anchored to this arc. When you change a surface, ask whether it still serves the moment.
+
+```
+  STEP                              | USER FEELS               | SURFACE / SIGNAL
+  ----------------------------------|--------------------------|--------------------------------------
+  1. Open app for the first time    | quiet anticipation       | Empty board (§11) — staff hairlines
+                                    | "this is mine to fill"   | + display "No tasks yet."
+                                    |                          | + muted conductor: "No agents
+                                    |                          | conducting · connect Claude Code"
+  ----------------------------------|--------------------------|--------------------------------------
+  2. Press ⌘N, type a one-liner     | low-friction commitment  | Create-task modal (§10 cmd-palette
+                                    | "I'll just describe it"  | family) — no required fields beyond
+                                    |                          | title; agent defaults to Claude Code
+  ----------------------------------|--------------------------|--------------------------------------
+  3. Card spawns in Backlog         | "ok, the system has it"  | Optimistic card skeleton (§11)
+                                    |                          | flips to real card on confirm
+  ----------------------------------|--------------------------|--------------------------------------
+  4. Press ⌘⏎ (or click Run)        | hand-off                 | Card lifts into Running lane,
+                                    | "go to work for me"      | status dot starts pulsing (§9), agent
+                                    |                          | stripe brightens
+  ----------------------------------|--------------------------|--------------------------------------
+  5. Click the card                 | focus                    | Detail panel slides in (§11),
+                                    | "what is it doing now"   | terminal attaches, scrollback
+                                    |                          | replays then live bytes flow
+  ----------------------------------|--------------------------|--------------------------------------
+  6. Watch agent work for 1-3 min   | calm trust               | Conductor strip's heuristic action
+                                    | "this is actually doing  | line (§10) keeps the user oriented
+                                    | the right thing"         | even if they leave the panel
+  ----------------------------------|--------------------------|--------------------------------------
+  7. Run ends, card moves to        | satisfaction +           | Approve / Request changes /
+     Reviewing                      | mild scrutiny            | Discard footer reveals (§11);
+                                    |                          | review status hue pulls amber
+  ----------------------------------|--------------------------|--------------------------------------
+  8. Click Approve                  | release + small          | One-time confirmation pulse on the
+                                    | dopamine hit             | card (§11), card lands in Complete
+                                    | "done."                  | lane. No toast — the pulse is the
+                                    |                          | reward. Inverse of the error-shake.
+```
+
+This arc is the v1 happy path. Off-path moments (`Blocked`, `Error`, agent unavailable, lost connection) get their own surfaces in §11 — they should feel like *recoverable interruptions*, not catastrophes.
+
 ## 2. Style direction: terminal-dark (v1)
 
 Near-black warm-cool surface, soft-white ink, **amber accent**, mono *display only* + Inter for everything readable. Built for long-running sessions watching agents work, with the visual character of an instrument-cluster console rather than a generic SaaS app.
@@ -132,7 +175,12 @@ These are defined in tokens but **not rendered** in v1 UI. Adding a new agent = 
 
 ### Allocation rule
 
-When a new agent is registered, allocate the next free hue at `L≈72%, C≈0.13`, sweeping `H` by 60° from the last allocated hue. The wheel fits 6 agents at this band; agent 7+ drops to a second band at `L≈65%, C≈0.13` and resumes the sweep.
+The 6 hues above are **hand-picked** at `L≈72%, C≈0.13` to maximize visual separability at chip size on a dark surface — they are not the output of an even 60° sweep (real spread is 50°/90°/145°/195°/235°/320°, biased away from yellow-green to keep the amber accent and the running-green status color uncrowded).
+
+When a 7th agent is registered:
+1. Add at the same band (`L≈72%, C≈0.13`) with **at least 30° hue separation** from every existing v1 agent and from `accent.base` (75°) and `status.running` (145°).
+2. If no free 30° gap remains in the upper band, drop to a second band at `L≈65%, C≈0.13` and pick the hue with the largest available gap there.
+3. Verify the new chip against existing chips at 20px monogram size before committing — perceptual separation, not just color-space separation.
 
 ## 6. Single-user v1, team-extensible
 
@@ -161,7 +209,7 @@ This is a deliberate split. Mono everywhere fatigues the eye over a long session
 | `body-lg` | 16px / 1.55 | Inter | Detail panel body |
 | `title` | 15px / 1.4, 600 | Inter | Task card title |
 | `heading` | 20px / 1.3, 500 | **Inter** | Section heading |
-| `display` | clamp(28, 1.5vw + 22, 44) / 1.15, 500 | Mono | Board name, hero (the one terminal moment) |
+| `display` | clamp(28, 1.5vw + 22, 44) / 1.15, 500 | Mono | Board name in the topbar; the editorial line on the empty board ("No tasks yet."). The one terminal-character moment in the typography system. |
 
 ## 8. Spacing & layout
 
@@ -260,19 +308,35 @@ Lane header is `caption` (mono uppercase) followed by a count chip, with a hairl
 
 ### Conductor strip
 
-A persistent 56px sticky footer showing live agent activity:
+A persistent sticky footer showing live agent activity. This is the most distinctive surface in the product. It exists because in agent-first PM, *who is doing what right now* is the most valuable status the user can see. In team mode, this strip gains a presence row above it.
+
+#### Height & layout
+
+- **Compact mode (1 active row):** 56px. Single line, vertically centered.
+- **Expanded mode (2-3 active rows):** 84px. Rows stack with `space-1` (4px) gap; meta-12px text leaves comfortable breathing room.
+- **Overflow (4+ active rows):** stays 84px, shows the 3 most recent rows, replaces the leftmost slot with a `+N more` ghost chip that opens a dropdown listing the rest. The dropdown is `surface.raised` with `shadow-3`.
+
+#### Row format
+
+Every row uses the same shape so the strip has a consistent rhythm:
 
 ```
-NOW CONDUCTING  CC running VM-218 · 2:14  › Reading src/auth/session.ts
-                CX running VM-219 · 0:41  › Running pnpm test
-                VM-211 ready for review
+<agent-chip> <verb> <task-key> · <elapsed>  [› <action-or-status>]
 ```
 
-This is the most distinctive surface in the product. It exists because in agent-first PM, *who is doing what right now* is the most valuable status the user can see. In team mode, this strip gains a presence row above it.
+The `[› …]` half is **optional** — running rows include it, awaiting-review rows omit it (clean ending on the task-key + status verb).
+
+```
+NOW CONDUCTING  [CC] running VM-218 · 2:14  › Reading src/auth/session.ts
+                [CX] running VM-219 · 0:41  › Running pnpm test
+                [—]  VM-211 ready for review
+```
+
+The `[—]` slot in the third row is the agent-chip dropping to a neutral monogram-shaped placeholder when no agent is currently bound (the run already exited; the user is the next actor).
 
 #### v1 "live next action" line — heuristic
 
-Because v1 has no structured agent-event channel (see API.md §11 TODO), the second-line "› …" cue is derived from the PTY scrollback rather than first-class events:
+Because v1 has no structured agent-event channel (see API.md §11 TODO), the `[› …]` cue is derived from the PTY scrollback rather than first-class events:
 
 - Source: the **last non-blank line** of the per-task scrollback ring (API.md §7), stripped of ANSI escape sequences.
 - Truncation: 60 chars, ellipsis on overflow.
@@ -372,7 +436,39 @@ First-launch impression. Single full-board `surface.base` with the four lane hea
 - `primary` button "New task" + a `meta` keyboard chip showing `⌘N`
 - A *muted* version of the conductor strip at the bottom: "No agents conducting · connect Claude Code to begin"
 
-No illustration. No empty-state graphic. The empty board itself, with its lane headers and staff lines, is the illustration.
+**The display-type composition IS the illustration.** Do not add SVG art, mascots, hero graphics, or empty-state imagery. The lane headers, staff hairlines, and the editorial type moment are the entire visual; the restraint is the point.
+
+### Success state — task moves Reviewing → Complete
+
+The inverse of the error-card shake. When the user presses Approve and the task transitions to `complete`:
+
+- The card emits a single 480ms outward glow in `status.complete` hue (1px → 6px box-shadow expansion), then settles to its resting `shadow-1`.
+- The card moves into the Complete lane via the standard `duration.base` `easing.emphasized` lane-move animation.
+- **No toast.** The pulse is the reward; a notification on top of a visual confirmation is noise.
+- Reduced motion: skip the glow; rely on the lane move alone.
+
+This is the only ambient celebratory motion in the system. Used here because completing a task is the moment the user pays for; everywhere else, motion is interaction-driven.
+
+### Connection-lost state — backend unreachable
+
+A single sticky banner sits above the topbar when the renderer can't reach the backend (in v1: a tRPC mutation has exhausted its retry budget; in v2: HTTP/WebSocket disconnect):
+
+- Banner: 32px tall, `surface.raised` with a 4px solid `status.error` left border, `meta` text color `text.primary`
+- Copy: `⚠ Lost connection to backend. Reconnecting…` (during retry) → `⚠ Disconnected. [Reconnect]` (after final failure, with a `secondary` retry button)
+- All mutation buttons (Approve, Cancel, Retry, Discard, New task, palette actions) become disabled with `cursor: not-allowed` and 0.55 opacity.
+- The board itself stays interactive for **read-only navigation** (focus, keyboard nav, opening the detail panel to read scrollback). New mutations are blocked.
+- On reconnect: banner fades over `duration.slow`, buttons re-enable, a single muted `info` toast confirms `Reconnected`.
+- Reduced motion: banner appears/disappears instantly, no fade.
+
+### Agent-unavailable state
+
+When `agent.available = false` (API.md §5.3), the agent is reachable in the registry but its `command` failed a probe (not on PATH, version mismatch, missing dependency). The system communicates this in three places at once:
+
+- **Agent chip:** renders at 0.55 opacity with a 1.5px dashed border in `status.error` (replaces the resting solid background). Hover tooltip: `Agent <label> is unavailable: <reason>`.
+- **Conductor strip:** an extra row appears, formatted as `[CC] unavailable · not on PATH  [Re-probe]`. The retry control is a `ghost` button. The row sits at the bottom of the active rows.
+- **Card-level:** any task whose `agent_id` references the unavailable agent disables its Run button. Tooltip mirrors the chip tooltip. The card itself is otherwise unmodified — the agent stripe stays the agent's hue (identity is constant; availability is transient).
+
+When the agent recovers (manual re-probe or auto-recovery), all three signals revert in the same render tick.
 
 ### Empty state — empty lane
 
@@ -396,7 +492,7 @@ While a task is being created (optimistic insert), render a card skeleton:
 
 Opens when a card is clicked. Slides in from the right at `duration.base` `easing.emphasized`. The primary surface is the **live terminal** attached to the agent's PTY — see §10 *Terminal (in-panel)* below. The user reads, types, and signals the agent directly.
 
-- Width: `min(720px, 55vw)` — wider than a typical sidebar because the terminal needs columns
+- Width: `clamp(560px, 55vw, 720px)` — wider than a typical sidebar because the terminal needs columns. Pairs with the v1 minimum window width of 1280×800 (set by plan #1's Electron config) so the board always retains at least 560px of working width when the panel is open.
 - Surface: `surface.raised`, border-left `1px solid border.subtle`, full-height
 - Header: `task-key` + agent chip + status indicator + close button (`ghost`)
 - Title: `heading`, prompt body `body-lg`
@@ -501,8 +597,17 @@ Agent identity uses both **hue and 2-letter monogram** — color is never the on
 When `prefers-reduced-motion: reduce`:
 - The running-task pulse becomes a static 2px ring around the dot.
 - The error-card shake on entry is suppressed.
+- The success-card pulse on Reviewing → Complete (§11) is suppressed; the lane move alone signals completion.
 - Detail-panel slide-in becomes an instant render.
 - Card hover lift drops to a 1px border-color change with no shadow transition.
+
+### Touch targets — v1 scope
+
+v1 is **desktop-primary** (Electron, 1280×800 minimum window). The mobile lane-switcher view (§11, < 640px) is included so the design system's responsive primitives are exercised end-to-end, but in v1 it is **read-only**: the chip row switches lanes, cards open into the detail panel for reading, but task creation, agent control, approve/reject/retry/discard, and command-palette actions all require a desktop session.
+
+This means the dense terminal-console scale (20px agent chips, 8px status dots, 1px-padded keyboard chips) is intentionally below WCAG 2.5.5's 44×44 target-size guidance. Below 640px those elements are informational, not interactive.
+
+When the v2 web mirror ships and team-mode implies field/mobile use, this section is rewritten: every interactive surface < 44px gets a transparent 44px tap zone, and the mobile lane-switcher gains real mutation affordances.
 
 ## 14. Browser support
 
