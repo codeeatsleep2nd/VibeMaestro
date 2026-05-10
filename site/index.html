@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="terminal-dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VibeMaestro — agent-first project management</title>
+    <meta
+      name="description"
+      content="Agent-first project management for humans who delegate to Claude Code and Codex. Local. Single-binary. Open source."
+    />
+    <meta property="og:title" content="VibeMaestro" />
+    <meta
+      property="og:description"
+      content="Agent-first project management for humans who delegate to Claude Code and Codex."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#0e0f12" />
+    <link rel="preconnect" href="https://rsms.me/" crossorigin />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <link rel="stylesheet" href="./styles/tokens.css" />
+    <link rel="stylesheet" href="./styles/landing.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span aria-hidden="true" class="logo"></span>
+        <span class="brand-name">VibeMaestro</span>
+      </a>
+      <nav>
+        <a href="#why">Why</a>
+        <a href="#how">How</a>
+        <a href="#what">What</a>
+        <a href="https://github.com/codeeatsleep2nd/VibeMaestro">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <h1 class="display">
+            AGENT-FIRST<br />
+            PROJECT<br />
+            MANAGEMENT<br />
+            <span class="display-soft">for humans who delegate to</span><br />
+            CLAUDE CODE<br />
+            <span class="display-soft">and</span><br />
+            CODEX.
+          </h1>
+          <p class="lede">Local. Single-binary. Open source.</p>
+          <div class="cta-row">
+            <button id="download-cta" type="button" class="btn-primary">
+              Download for macOS
+            </button>
+            <span id="platform-hint" class="meta">(auto-detected)</span>
+          </div>
+          <details class="other-platforms">
+            <summary>Other platforms</summary>
+            <ul>
+              <li><a id="dl-macos" href="#">macOS (Apple Silicon + Intel)</a></li>
+              <li><a id="dl-windows" href="#">Windows</a></li>
+              <li><a id="dl-linux" href="#">Linux (.AppImage / .deb)</a></li>
+            </ul>
+          </details>
+        </div>
+
+        <aside class="conductor-strip" aria-label="Live conductor preview">
+          <header class="strip-header">
+            <span class="caption">Conducting</span>
+            <span class="meta tabular" id="active-count">3 active</span>
+          </header>
+          <ul id="strip-rows" class="strip-rows">
+            <li class="strip-row" data-agent="claude-code">
+              <span class="agent-chip" data-monogram="CC"></span>
+              <span class="task-id mono">VM-218</span>
+              <span class="action-line" data-task="VM-218">Reading src/auth/sess</span>
+              <span class="elapsed mono tabular" data-task="VM-218">0s</span>
+              <span class="status-pill running">running</span>
+            </li>
+            <li class="strip-row" data-agent="codex">
+              <span class="agent-chip" data-monogram="CX"></span>
+              <span class="task-id mono">VM-219</span>
+              <span class="action-line" data-task="VM-219">Editing src/util/fmt</span>
+              <span class="elapsed mono tabular" data-task="VM-219">0s</span>
+              <span class="status-pill running">running</span>
+            </li>
+            <li class="strip-row" data-agent="claude-code">
+              <span class="agent-chip" data-monogram="CC"></span>
+              <span class="task-id mono">VM-211</span>
+              <span class="action-line">awaiting review · CSV export</span>
+              <span class="elapsed mono tabular">2m 14s</span>
+              <span class="status-pill review">review</span>
+            </li>
+          </ul>
+        </aside>
+      </section>
+
+      <section id="why" class="prose">
+        <h2 class="display">Why</h2>
+        <p>
+          You have agents now. You don't have a place to put them. Tickets pile up in
+          Linear; the agent runs in your terminal; the work product ends up in a
+          gist. The conductor is invisible — and the conductor is you.
+        </p>
+        <p>
+          VibeMaestro is the dashboard for this new shape of work. The board is the
+          product. The agent is the worker. You stay the conductor.
+        </p>
+      </section>
+
+      <section id="how" class="prose">
+        <h2 class="display">How</h2>
+        <p>
+          Drop a one-liner. The local Claude Code or Codex CLI picks it up — running
+          in a real PTY in a real shell with your real PATH. Bytes stream into the
+          card; the state machine moves Backlog → Running → Reviewing → Complete on
+          the agent's exit code. Approve or request changes. The board never lies.
+        </p>
+      </section>
+
+      <section id="what" class="prose">
+        <h2 class="display">What</h2>
+        <ul class="bullet-list">
+          <li>Four-lane board, terminal-dark theme, color-blind-safe status.</li>
+          <li>xterm.js panel shows the live PTY, replay-on-attach to recently-ended runs.</li>
+          <li>Single-binary install. Local SQLite. No cloud.</li>
+          <li>MIT license, every commit reviewable.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span class="meta">
+        v<span id="version">0.1.0</span> ·
+        <a href="https://github.com/codeeatsleep2nd/VibeMaestro">GitHub</a> ·
+        <a href="https://github.com/codeeatsleep2nd/VibeMaestro/blob/main/LICENSE">MIT</a>
+      </span>
+    </footer>
+
+    <script type="module" src="./scripts/conductor-strip.ts"></script>
+    <script type="module" src="./scripts/download-cta.ts"></script>
+  </body>
+</html>
