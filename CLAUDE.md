@@ -11,12 +11,13 @@ VibeMaestro is an **agent-first project management dashboard** for local single-
 
 | File | Owns |
 |---|---|
+| `IMPLEMENTATION.md` | Master roadmap. The map across DESIGN.md + API.md + the 10 plans. **Read first.** |
 | `DESIGN.md` | Visual system, components, surfaces, anti-patterns, accessibility targets |
 | `API.md` | Resource contracts, transport, state machine, errors, terminal protocol |
-| `design-tokens.json` | Machine-readable token source (consumed by build → `tokens.css` in plan #6) |
+| `design-tokens.json` | Machine-readable token source (consumed by build → `tokens.css` in plan #6 + plan #10) |
 | `design-preview.html` | Self-contained reference render of the token system + theme swap |
 | `assets/logo.svg` | Primary mark (themeable via `currentColor`) |
-| `.claude/PRPs/plans/0N-*.plan.md` | Sequenced implementation plans, #1 → #8 |
+| `.claude/PRPs/plans/0N-*.plan.md` | Sequenced implementation plans, #1 → #10 |
 | `TODOS.md` | Deferred work, v2 promotions, design follow-ups |
 
 If a UI affordance in `DESIGN.md` doesn't have a contract in `API.md`, that's a bug in `API.md` (and vice versa).
