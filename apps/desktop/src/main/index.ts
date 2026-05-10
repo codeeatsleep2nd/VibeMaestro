@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from "electron";
+import { initAutoUpdater } from "./auto-update.js";
 import { initDb } from "./db.js";
 import { registerTrpcIpc } from "./ipc.js";
 import { registerEventBridges } from "./ipc-events.js";
@@ -27,9 +28,13 @@ async function bootstrap() {
   // marked unavailable until the user retries via agents.probe.
   void createAgentService()
     .probeAll()
-    .catch((err) =>
+    .catch((err: unknown) =>
       logger.warn({ err: err instanceof Error ? err.message : String(err) }, "probeAll failed"),
     );
+
+  // Auto-update: only does anything in packaged builds. Errors are logged
+  // and ignored — never block startup on a flaky update channel.
+  void initAutoUpdater();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

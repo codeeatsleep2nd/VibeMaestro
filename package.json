@@ -20,7 +20,12 @@
     "format": "biome format --write .",
     "tokens": "bun run scripts/generate-tokens.ts",
     "desktop:dev": "bun run --cwd apps/desktop dev",
-    "desktop:build": "bun run --cwd apps/desktop build"
+    "desktop:build": "bun run --cwd apps/desktop build",
+    "package": "bun run --cwd apps/desktop build && bun run --cwd apps/desktop package",
+    "package:dir": "bun run --cwd apps/desktop build && bun run --cwd apps/desktop package:dir",
+    "release:patch": "npm version patch --no-git-tag-version --workspaces=false && git commit -am \"chore: release v$(node -p \\\"require('./package.json').version\\\")\" && git tag v$(node -p \"require('./package.json').version\")",
+    "release:minor": "npm version minor --no-git-tag-version --workspaces=false && git commit -am \"chore: release v$(node -p \\\"require('./package.json').version\\\")\" && git tag v$(node -p \"require('./package.json').version\")",
+    "release:major": "npm version major --no-git-tag-version --workspaces=false && git commit -am \"chore: release v$(node -p \\\"require('./package.json').version\\\")\" && git tag v$(node -p \"require('./package.json').version\")"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.1",
