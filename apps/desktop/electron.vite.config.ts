@@ -10,7 +10,7 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
  * source directly into the main bundle so we don't need a build step.
  */
 const externalize = externalizeDepsPlugin({
-  exclude: ["@vibemaestro/core", "@vibemaestro/db"],
+  exclude: ["@vibemaestro/core", "@vibemaestro/db", "@vibemaestro/pty-daemon"],
 });
 
 /**
@@ -24,6 +24,7 @@ const NATIVE_DEPS = [
   /^drizzle-orm\//,
   "bindings",
   "node-gyp-build",
+  "node-pty",
 ];
 
 export default defineConfig({
@@ -33,6 +34,7 @@ export default defineConfig({
       alias: {
         "@vibemaestro/core": resolve(__dirname, "../../packages/core/src/index.ts"),
         "@vibemaestro/db": resolve(__dirname, "../../packages/db/src/index.ts"),
+        "@vibemaestro/pty-daemon": resolve(__dirname, "../../packages/pty-daemon/src/index.ts"),
       },
     },
     build: {

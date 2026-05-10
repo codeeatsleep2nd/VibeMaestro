@@ -9,7 +9,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "echo 'no tests yet — plans #2-#8 add integration + e2e tests'"
+    "test": "bun test test/"
   },
   "dependencies": {
     "@tanstack/react-query": "5.100.9",
@@ -17,9 +17,11 @@
     "@trpc/server": "11.17.0",
     "@vibemaestro/core": "workspace:*",
     "@vibemaestro/db": "workspace:*",
+    "@vibemaestro/pty-daemon": "workspace:*",
     "better-sqlite3": "12.9.0",
     "clsx": "2.1.1",
     "drizzle-orm": "0.45.2",
+    "node-pty": "1.1.0-beta43",
     "lucide-react": "0.577.0",
     "pino": "9.14.0",
     "react": "19.2.2",

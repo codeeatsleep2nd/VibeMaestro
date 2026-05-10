@@ -64,6 +64,10 @@ export class AgentRepository {
   markProbed(id: string, available: boolean, version: string | null): void {
     this.db.update(agents).set({ available, version }).where(eq(agents.id, id)).run();
   }
+
+  delete(id: string): void {
+    this.db.delete(agents).where(eq(agents.id, id)).run();
+  }
 }
 
 type DbAgentRow = typeof agents.$inferSelect;

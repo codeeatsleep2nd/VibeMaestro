@@ -1,5 +1,5 @@
 import type { Run, RunStatus } from "@vibemaestro/core";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import type { DbClient } from "../client.js";
 import { runs } from "../schema.js";
 
@@ -55,6 +55,19 @@ export class RunRepository {
         bytes_emitted: fields.bytes_emitted,
         ended_at: fields.ended_at,
       })
+      .where(eq(runs.id, id))
+      .run();
+  }
+
+  /**
+   * Atomic increment for the throttled byte counter. Avoids a read-modify-write
+   * race when the dispatcher's flush coincides with another writer.
+   */
+  incrementBytes(id: string, by: number): void {
+    if (by <= 0) return;
+    this.db
+      .update(runs)
+      .set({ bytes_emitted: sql`${runs.bytes_emitted} + ${by}` })
       .where(eq(runs.id, id))
       .run();
   }

@@ -33,6 +33,7 @@
   },
   "trustedDependencies": [
     "better-sqlite3",
-    "electron"
+    "electron",
+    "node-pty"
   ]
 }
