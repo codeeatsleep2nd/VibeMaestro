@@ -485,9 +485,24 @@ Multiple WebSocket clients may attach to the same task simultaneously. All recei
 
 ## 10. Operational concerns
 
-- **Port selection:** the backend tries `5170` first, falls back to the next free port. The active port is written to `~/.vibemaestro/port` at startup so the UI can find it.
+- **Port selection (v2 only):** the backend tries `5170` first, falls back to the next free port. The active port is written to `~/.vibemaestro/port` at startup so external tools can find it. v1 does not bind a port — all renderer traffic is Electron IPC.
 - **Logging:** structured JSON to stderr. One line per request with method, path, status, duration_ms, and request_id. PTY content is **not** logged.
 - **Persistence (v1):** SQLite at `~/.vibemaestro/data.sqlite`. Tasks, runs, and agents are durable. PTY scrollback is in-memory only — restarts lose live scrollback but durable run records (and the captured transcript at run-end) are preserved.
+
+### v1 conductor "live next action" heuristic
+
+Because v1 has no structured agent-event channel (see §11 TODO), the conductor strip's second-line "› …" cue (DESIGN.md §10) is derived from the PTY scrollback rather than first-class events:
+
+- Source: the **last non-blank line** of the per-task scrollback ring (§7 above), stripped of ANSI CSI escape sequences.
+- Truncation: 60 visible chars, ellipsis on overflow.
+- Cadence: piggybacks on the `run.progress` event from §6.1 (max 1 Hz).
+- Surfaced as: an additional optional `current_action` field on `run.progress`:
+  ```json
+  { "task_id": "VM-218", "run_id": "run_…", "elapsed_ms": 1340, "bytes_emitted": 4096, "current_action": "Reading src/auth/session.ts" }
+  ```
+- Honesty: this is a placeholder. It will sometimes show partial lines or noisy output. The renderer treats `current_action` as advisory display only.
+
+When the structured-event channel (§11) ships, `current_action` is replaced by a derived value from the real tool-call event without changing the wire format.
 
 ## 11. Open TODOs (v2)
 

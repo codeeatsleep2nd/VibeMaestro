@@ -40,7 +40,7 @@ Each theme block in `design-preview.html` (and in `design-tokens.json`) defines 
 | Theme | Status | Notes |
 |---|---|---|
 | `terminal-dark` | **default, v1** | Designed and shipped. |
-| `paper-light` | stub | Defines all required keys so the swap mechanism works end-to-end, but is **not designed** for production. Treat as a proof point, not a product. |
+| `paper-light` | internal verifier only | Defines all required keys so the swap mechanism works end-to-end, but is **not designed** for production. Treat as a proof point, not a product. **Not exposed in the user-facing theme switch in v1.** Promoted to a shipping theme only after a dedicated design pass against §13 contrast targets and §15 anti-patterns. Until then, swap is reachable from a developer-only menu (or by setting `data-theme="paper-light"` on `<html>`) for verifying the mechanism. |
 
 ### Adding a theme
 
@@ -263,10 +263,23 @@ Lane header is `caption` (mono uppercase) followed by a count chip, with a hairl
 A persistent 56px sticky footer showing live agent activity:
 
 ```
-NOW CONDUCTING  CC running VM-218 · 2:14  /  CX running VM-219 · 0:41  /  VM-211 ready for review
+NOW CONDUCTING  CC running VM-218 · 2:14  › Reading src/auth/session.ts
+                CX running VM-219 · 0:41  › Running pnpm test
+                VM-211 ready for review
 ```
 
 This is the most distinctive surface in the product. It exists because in agent-first PM, *who is doing what right now* is the most valuable status the user can see. In team mode, this strip gains a presence row above it.
+
+#### v1 "live next action" line — heuristic
+
+Because v1 has no structured agent-event channel (see API.md §11 TODO), the second-line "› …" cue is derived from the PTY scrollback rather than first-class events:
+
+- Source: the **last non-blank line** of the per-task scrollback ring (API.md §7), stripped of ANSI escape sequences.
+- Truncation: 60 chars, ellipsis on overflow.
+- Cadence: updated at most 1 Hz (piggybacks on the `run.progress` event from API.md §6.1).
+- Honesty: this is a placeholder. It will sometimes show partial lines or noisy output. Live with it in v1; promote to a real signal when the structured-event channel ships.
+
+When `tool_calls_count` and structured per-tool-call events land in v2, the heuristic is replaced by the real "current tool" signal without changing the visual.
 
 ### Buttons
 
@@ -390,7 +403,7 @@ Opens when a card is clicked. Slides in from the right at `duration.base` `easin
 - Meta strip: runtime, bytes emitted, exit code (when available) — all `meta`. Tool calls / model / cost are `—` in v1 (see API.md §11) and light up when the structured-event channel ships.
 - Tabbed content:
   - **Terminal** (default, primary) — live `xterm.js` attached over WebSocket. Scrollback replays on attach so reopening the panel never loses context.
-  - **Diff** — file changes for the current run, mono with semantic +/− gutters (§11 *Detail panel — diff view*).
+  - **Diff** — file changes for the current run, mono with semantic +/− gutters (§11 *Detail panel — diff view*). **v1.5 — ships in v1 as a placeholder visual shell** (the empty-state and the visual style of the diff rows are designed; the data is stubbed). Real diff rendering lights up when project-root scoping lands; the rendering shell is in place so the v1.5 promotion is purely a data wire-up. See API.md §5.2.1.
   - **Transcript** — full saved PTY output once the run ends. Searchable, copyable. While the run is live this tab shows "Run in progress — see Terminal."
 - Footer: `Approve & merge` (`primary`), `Request changes` (`secondary`), `Discard run` (`ghost`). Buttons are state-aware and only appear in the relevant phase (Approve/Request changes when `reviewing`; Discard when `running`).
 - Backdrop: none — the board stays interactive behind the panel

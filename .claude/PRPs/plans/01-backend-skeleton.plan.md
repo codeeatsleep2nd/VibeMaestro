@@ -924,6 +924,22 @@ bun dev                            # turbo dev — runs apps/desktop dev plus an
 - [ ] `README.md` has a working "Getting started" section
 - [ ] Renderer's "Ping main" button works end-to-end through the IPC bridge
 
+## Spike Acceptance (toolchain validation gate — runs *before* plans #2-#8)
+
+Plan #1 doubles as a **spike** that proves the four risky toolchain assumptions hold before plans #2-#8 are implemented. The spike piggybacks on plan #1's deliverable plus a minimal slice of plan #3 (one hardcoded agent, one PTY spawn, one capture, one exit). If any spike acceptance line fails, **stop and re-evaluate** — do not proceed to plan #2.
+
+The spike adds these checks to the acceptance bar above:
+
+- [ ] **better-sqlite3 ABI:** `bun dev` opens the Electron window without `NODE_MODULE_VERSION` error; SQLite at `~/.vibemaestro/data.sqlite` is created and the migration runner reports "0 migrations to apply".
+- [ ] **node-pty ABI:** add a temporary `pty.spawn` smoke test in the main process behind a feature flag (`VM_SPIKE=1`). On startup with the flag, spawn `/bin/echo "spike ok"` in a PTY, capture the output, log "PTY ok: <bytes>", and exit cleanly. No `NODE_MODULE_VERSION` error.
+- [ ] **macOS GUI PATH:** when the Electron app is launched from Finder/Dock (not from a terminal), the spawn above resolves `/bin/echo` (absolute path, baseline) AND a separately-tested PATH-relative spawn (e.g., `which`) succeeds via the resolved login-shell PATH. Document the resolved PATH at startup in the structured log.
+- [ ] **Electron + Bun + tRPC end-to-end:** the existing "Ping main" button path counts (already in plan #1).
+- [ ] **Spike teardown:** the temporary `pty.spawn` smoke test, the feature flag, and the PATH-resolution probe all live behind `VM_SPIKE=1` and are removed (or migrated into plan #3) before plan #2 starts. Do not leak spike code into the production main process.
+
+**Spike outcome documented in:** a one-page report appended to this plan's PR description (or, if the spike PR is separate, linked from plan #2's prerequisites). Capture: (a) which assumptions held, (b) which needed mitigation, (c) what the resolved PATH looked like, (d) any platform-specific surprises (intel vs apple silicon, OS version).
+
+If the spike surfaces a hard blocker (e.g., node-pty fundamentally won't build for the pinned Electron 33), the response is to re-spec the affected plans — **not** to ship plan #1 with the issue deferred.
+
 ## Completion Checklist
 - [ ] Code follows the patterns established in this plan
 - [ ] Error handling uses `AppError` + the tRPC formatter
