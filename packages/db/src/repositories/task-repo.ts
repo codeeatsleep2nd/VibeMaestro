@@ -1,4 +1,4 @@
-import type { Task, TaskStatus } from "@vibemaestro/core";
+import type { PhaseSkillsOverride, Task, TaskStatus } from "@vibemaestro/core";
 import { and, count, desc, eq } from "drizzle-orm";
 import type { DbClient } from "../client.js";
 import { taskSequence, tasks } from "../schema.js";
@@ -6,6 +6,7 @@ import { taskSequence, tasks } from "../schema.js";
 export type TaskFilters = {
   status?: TaskStatus;
   agent_id?: string;
+  workspace_id?: string;
   page: number;
   per_page: number;
   sort: "created_at_desc" | "updated_at_desc";
@@ -41,7 +42,9 @@ export class TaskRepository {
         prompt: task.prompt,
         status: task.status,
         agent_id: task.agent_id,
+        workspace_id: task.workspace_id,
         current_run_id: task.current_run_id,
+        phase_skills_override: task.phase_skills_override,
         created_at: task.created_at,
         updated_at: task.updated_at,
         metadata: task.metadata,
@@ -58,6 +61,7 @@ export class TaskRepository {
     const conditions = [];
     if (filters.status) conditions.push(eq(tasks.status, filters.status));
     if (filters.agent_id) conditions.push(eq(tasks.agent_id, filters.agent_id));
+    if (filters.workspace_id) conditions.push(eq(tasks.workspace_id, filters.workspace_id));
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const sortColumn =
@@ -91,9 +95,12 @@ export class TaskRepository {
 
   patch(
     id: string,
-    fields: Partial<Pick<Task, "title" | "prompt" | "agent_id" | "metadata">>,
+    fields: Partial<
+      Pick<Task, "title" | "prompt" | "agent_id" | "metadata" | "phase_skills_override">
+    >,
     at: string,
   ): void {
+    // D15: workspace_id is NOT patchable here. Tasks can't move workspaces in v1.
     this.db
       .update(tasks)
       .set({ ...fields, updated_at: at })
@@ -120,7 +127,9 @@ function rowToTask(row: DbTaskRow): Task {
     prompt: row.prompt,
     status: row.status as TaskStatus,
     agent_id: row.agent_id,
+    workspace_id: row.workspace_id,
     current_run_id: row.current_run_id,
+    phase_skills_override: (row.phase_skills_override as PhaseSkillsOverride) ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     metadata: (row.metadata as Record<string, unknown>) ?? {},

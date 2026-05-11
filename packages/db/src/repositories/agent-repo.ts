@@ -1,4 +1,4 @@
-import type { Agent } from "@vibemaestro/core";
+import type { Agent, SkillDefinition } from "@vibemaestro/core";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../client.js";
 import { agents } from "../schema.js";
@@ -23,6 +23,7 @@ export class AgentRepository {
         available: agent.available,
         version: agent.version,
         registered_at: agent.registered_at,
+        skills: agent.skills,
       })
       .run();
   }
@@ -44,6 +45,7 @@ export class AgentRepository {
           prompt_via: agent.prompt_via,
           available: agent.available,
           version: agent.version,
+          skills: agent.skills,
         })
         .where(eq(agents.id, agent.id))
         .run();
@@ -63,6 +65,10 @@ export class AgentRepository {
 
   markProbed(id: string, available: boolean, version: string | null): void {
     this.db.update(agents).set({ available, version }).where(eq(agents.id, id)).run();
+  }
+
+  setSkills(id: string, skills: SkillDefinition[]): void {
+    this.db.update(agents).set({ skills }).where(eq(agents.id, id)).run();
   }
 
   delete(id: string): void {
@@ -87,5 +93,6 @@ function rowToAgent(row: DbAgentRow): Agent {
     available: row.available,
     version: row.version,
     registered_at: row.registered_at,
+    skills: (row.skills as SkillDefinition[]) ?? [],
   };
 }

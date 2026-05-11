@@ -37,9 +37,9 @@ Deferred work, ordered by horizon. Items here are not roadmap commitments — th
 **Depends on:** A second-agent integration that motivates structured signals (Claude Code's tool calls aren't already structured-stdout; would need a wrapper). Re-evaluate when adding the third agent.
 
 ### [P2] Promote Diff tab from v1.5 placeholder to v1
-**Why:** DESIGN.md §11 currently marks the Diff tab as "v1.5 — placeholder visual shell". Real diff requires a `project_root` concept on Task (where in the filesystem the agent is allowed to write).
-**Cost:** ~1 day human / ~2 hr CC. Adds: `Task.project_root` field (API.md §5.1), git diff capture at run-end (plan #3), real diff rendering in the panel (plan #7), `runs.getDiff` real implementation (API.md §5.2.1 already specs the shape).
-**Depends on:** Project-root scoping is also needed for v2 multi-project workspaces. Bundle the work.
+**Why:** DESIGN.md §11 currently marks the Diff tab as "v1.5 — placeholder visual shell". Real diff requires a project root concept — the filesystem path the agent is writing in.
+**Cost:** ~1 day human / ~2 hr CC. Adds: git diff capture at run-end (plan #3), real diff rendering in the panel (plan #7), `runs.getDiff` real implementation (API.md §5.2.1 already specs the shape).
+**Depends on:** Plan #11 (shipped 2026-05-10) supplies the project root via `workspace.path`. The Diff tab reads it directly — no new `Task.project_root` field needed.
 
 ## v2 (from API.md §11)
 
@@ -50,7 +50,7 @@ External CLI tools, MCP servers, and scripts need to talk to a running VibeMaest
 Per-launch token in `Authorization: Bearer …`; WebSocket via `?token=…`. Middleware slot already exists (API.md §3); this is a swap.
 
 ### [P2] Team mode resources
-`User`, `Workspace`, `Membership`, `Mention`, presence channel. The `assignee` slot on Task and the presence row above the conductor strip are already reserved in DESIGN.md §6 (rendered `display: none` in single-user). **Reminder:** check the reserved slots still exist in the code when this lands — do not redesign the card from scratch.
+`User`, `Membership`, `Mention`, presence channel. The team-mode evolution **extends the existing `Workspace` resource** from plan #11 (shipped 2026-05-10) — `Membership`/`Mention` are new tables that reference `workspace_id`. Plan #11 picked the forward-compatible naming (D1) so v2 is purely additive, not a parallel resource. The `assignee` slot on Task and the presence row above the conductor strip are already reserved in DESIGN.md §6 (rendered `display: none` in single-user). **Reminder:** check the reserved slots still exist in the code when this lands — do not redesign the card from scratch.
 
 ### [P3] Cursor pagination
 Add when any single-user task list crosses ~10K. Today's offset pagination is fine.
@@ -87,3 +87,15 @@ Detail-panel meta strip mentions cost and model. v1 leaves these `null`. v2 coll
 **What:** Rewrite DESIGN.md §13 "Touch targets" to require 44×44 tap zones on every interactive element below 640px. Add to the mobile lane-switcher: real mutation affordances (long-press for context menu, swipe gestures for approve/reject), task creation as a sheet rather than a modal. Re-spec the agent chip with a tap-zone wrapper that doesn't change its visual size.
 **Cost:** ~half day human / ~30 min CC for spec; implementation cost depends on whether v2 web-mirror or team-mode lands first.
 **Depends on:** v2 web mirror or team-mode shipping. Don't promote speculatively.
+
+### [P3] Migration failure recovery UX (added by plan #11 eng review 2026-05-10)
+**Why:** If a future Drizzle migration fails on the user's machine (disk full, schema corruption, hand-edited DB), Electron currently crashes on boot with a raw SQLite error. Recovery requires manual DB surgery the user can't easily perform.
+**What:** A "migration failed" startup screen that shows the migration name, error message, a "Show in Finder" button pointing at `~/.vibemaestro/`, and a "Reset DB (destructive)" button. Pino logs already capture the failure for support.
+**Cost:** ~half day human / ~30 min CC. Adds `migration-fallback.tsx` rendered before the main app shell when `runMigrations()` throws.
+**Depends on:** First reported boot-fail incident, or proactively as a v1.x polish item.
+
+### [P3] WorkspacePicker virtualization at 50+ workspaces (added by plan #11 eng review 2026-05-10)
+**Why:** The dropdown currently renders all workspaces. At v1 scale (~3-5 workspaces) this is fine, but power users with 50+ repos will see frame drops on the dropdown open.
+**What:** Add `@tanstack/react-virtual` to `WorkspacePicker` items list. Mirror the board-virtualization pattern (also TODO'd above) — only render visible items.
+**Cost:** ~30 min CC. Adds ~10 lines to the picker + a test.
+**Depends on:** Real load — don't add speculatively. Promote when a user reports it or when telemetry shows it.

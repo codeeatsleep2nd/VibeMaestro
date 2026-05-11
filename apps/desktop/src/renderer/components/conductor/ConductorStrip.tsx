@@ -1,4 +1,4 @@
-import type { Agent, Task } from "@vibemaestro/core";
+import type { Agent, Task, Workspace } from "@vibemaestro/core";
 import { useEffect, useState } from "react";
 import { cn } from "../../lib/cn.js";
 import { AgentChip } from "../agent/AgentChip.js";
@@ -6,6 +6,7 @@ import { AgentChip } from "../agent/AgentChip.js";
 type Props = {
   tasks: Task[];
   agents: Agent[];
+  workspaces: Workspace[];
 };
 
 const MAX_ROWS = 3;
@@ -19,8 +20,11 @@ const MAX_ROWS = 3;
  * - 1Hz tick to update elapsed times — uses a tick state, not requestAnimationFrame,
  *   to stay calm and never re-render mid-animation.
  */
-export function ConductorStrip({ tasks, agents }: Props) {
+export function ConductorStrip({ tasks, agents, workspaces }: Props) {
   const agentMap = new Map(agents.map((a) => [a.id, a]));
+  const workspaceMap = new Map(workspaces.map((w) => [w.id, w]));
+  // D18: cross-workspace pill renders only when 2+ workspaces exist.
+  const showWorkspacePill = workspaces.length >= 2;
   const active = tasks
     .filter((t) => t.status === "running" || t.status === "reviewing")
     .sort((a, b) => +new Date(b.updated_at) - +new Date(a.updated_at))
@@ -75,8 +79,27 @@ export function ConductorStrip({ tasks, agents }: Props) {
         {visible.map((task) => {
           const agent = agentMap.get(task.agent_id);
           if (!agent) return null;
+          const workspace = workspaceMap.get(task.workspace_id);
           return (
             <li key={task.id} className="flex items-center gap-[var(--space-3)]">
+              {showWorkspacePill && workspace ? (
+                <span
+                  className="font-mono uppercase tracking-wider text-text-secondary
+                             bg-surface-inset border border-border-subtle"
+                  style={{
+                    fontSize: 10,
+                    padding: "2px 6px",
+                    borderRadius: "var(--radius-xs)",
+                    maxWidth: "14ch",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={workspace.label}
+                >
+                  {workspace.label}
+                </span>
+              ) : null}
               <AgentChip agent={agent} size="sm" />
               <span className="text-meta text-text-primary font-mono" style={{ minWidth: 64 }}>
                 {task.id}

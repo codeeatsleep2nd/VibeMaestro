@@ -1,5 +1,5 @@
-import { type Agent, AppError } from "@vibemaestro/core";
-import { AgentRepository, TaskRepository } from "@vibemaestro/db";
+import { type Agent, AppError, type SkillDefinition } from "@vibemaestro/core";
+import { AgentRepository, TaskRepository, WorkspaceRepository } from "@vibemaestro/db";
 import { probeAgent } from "@vibemaestro/pty-daemon";
 import { getDb } from "../db.js";
 import { bus } from "../lib/event-bus.js";
@@ -14,6 +14,7 @@ export function createAgentService() {
   const { db } = getDb();
   const repo = new AgentRepository(db);
   const taskRepo = new TaskRepository(db);
+  const workspaceRepo = new WorkspaceRepository(db);
 
   function list(): Agent[] {
     return repo.list();
@@ -27,6 +28,14 @@ export function createAgentService() {
     const agent = repo.findById(id);
     if (!agent) throw new AppError("not_found", `Agent "${id}" not found`);
     return agent;
+  }
+
+  /** Admin/dev helper. UI surface is seed-only in v1 (no Settings page). */
+  function registerSkills(id: string, skills: SkillDefinition[]): Agent {
+    require_(id);
+    repo.setSkills(id, skills);
+    log.info({ agent_id: id, skill_count: skills.length }, "agent skills registered");
+    return require_(id);
   }
 
   /**
@@ -66,16 +75,24 @@ export function createAgentService() {
   }
 
   function deleteOne(id: string): void {
-    const refs = taskRepo.list({ agent_id: id, page: 1, per_page: 1, sort: "updated_at_desc" });
-    if (refs.total > 0) {
+    const refsTasks = taskRepo.list({
+      agent_id: id,
+      page: 1,
+      per_page: 1,
+      sort: "updated_at_desc",
+    });
+    // D8: extend the delete guard to also count workspaces that pin this agent as their default.
+    const refsWorkspaces = workspaceRepo.list().filter((w) => w.default_agent_id === id);
+    if (refsTasks.total > 0 || refsWorkspaces.length > 0) {
       throw new AppError(
         "conflict",
-        `Cannot delete agent "${id}" — ${refs.total} task(s) reference it`,
-        { task_count: refs.total },
+        `Cannot delete agent "${id}" — ${refsTasks.total} task(s) and ${refsWorkspaces.length} workspace(s) reference it`,
+        { task_count: refsTasks.total, workspace_count: refsWorkspaces.length },
       );
     }
     repo.delete(id);
+    log.info({ agent_id: id }, "agent deleted");
   }
 
-  return { list, get, require: require_, probe, probeAll, delete: deleteOne };
+  return { list, get, require: require_, probe, probeAll, registerSkills, delete: deleteOne };
 }

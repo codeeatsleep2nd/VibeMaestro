@@ -1,23 +1,36 @@
-import type { Agent } from "@vibemaestro/core";
+import type { Agent, PhaseSkillsOverride, Workspace } from "@vibemaestro/core";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCreateTask } from "../../hooks/useTasks.js";
 import { cn } from "../../lib/cn.js";
 import { AgentChip } from "../agent/AgentChip.js";
+import { PhaseSkillEditor } from "../workspace/PhaseSkillEditor.js";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   agents: Agent[];
+  workspace: Workspace | null;
   initialPrompt?: string | null;
 };
 
-export function CreateTaskModal({ open, onClose, agents, initialPrompt }: Props) {
+export function CreateTaskModal({ open, onClose, agents, workspace, initialPrompt }: Props) {
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [agentId, setAgentId] = useState<string>(agents[0]?.id ?? "claude-code");
+  const [agentId, setAgentId] = useState<string>(
+    workspace?.default_agent_id ?? agents[0]?.id ?? "claude-code",
+  );
+  const [phaseSkillsOverride, setPhaseSkillsOverride] = useState<PhaseSkillsOverride>(null);
   const create = useCreateTask();
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // D14: re-render pre-fill when the active workspace changes.
+  // Reset agent + override whenever the workspace changes (or modal opens fresh).
+  useEffect(() => {
+    if (!open) return;
+    setAgentId(workspace?.default_agent_id ?? agents[0]?.id ?? "claude-code");
+    setPhaseSkillsOverride(null);
+  }, [open, workspace, agents]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,12 +52,21 @@ export function CreateTaskModal({ open, onClose, agents, initialPrompt }: Props)
 
   if (!open) return null;
 
+  const selectedAgent = agents.find((a) => a.id === agentId) ?? null;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !prompt.trim()) return;
-    await create.mutateAsync({ title: title.trim(), prompt: prompt.trim(), agent_id: agentId });
+    if (!title.trim() || !prompt.trim() || !workspace) return;
+    await create.mutateAsync({
+      workspace_id: workspace.id,
+      title: title.trim(),
+      prompt: prompt.trim(),
+      agent_id: agentId,
+      phase_skills_override: phaseSkillsOverride,
+    });
     setTitle("");
     setPrompt("");
+    setPhaseSkillsOverride(null);
     onClose();
   };
 
@@ -141,6 +163,18 @@ export function CreateTaskModal({ open, onClose, agents, initialPrompt }: Props)
           </div>
         </fieldset>
 
+        {workspace ? (
+          <div className="mt-[var(--space-4)]">
+            <PhaseSkillEditor
+              mode="task"
+              inheritFrom={workspace.phase_skills}
+              value={phaseSkillsOverride}
+              onChange={setPhaseSkillsOverride}
+              agent={selectedAgent}
+            />
+          </div>
+        ) : null}
+
         <div className="mt-[var(--space-5)] flex items-center justify-end gap-[var(--space-2)]">
           <button
             type="button"
@@ -152,7 +186,7 @@ export function CreateTaskModal({ open, onClose, agents, initialPrompt }: Props)
           </button>
           <button
             type="submit"
-            disabled={!title.trim() || !prompt.trim() || create.isPending}
+            disabled={!workspace || !title.trim() || !prompt.trim() || create.isPending}
             className="px-[var(--space-4)] py-[var(--space-2)] text-meta rounded-sm
                        bg-accent-base text-text-on-accent hover:bg-accent-hover
                        disabled:opacity-50 disabled:cursor-not-allowed

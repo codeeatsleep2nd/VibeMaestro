@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { AppError } from "@vibemaestro/core";
-import { RunRepository } from "@vibemaestro/db";
+import { RunRepository, TaskRepository } from "@vibemaestro/db";
 import {
   byteThrottle,
   ScrollbackRing,
@@ -28,6 +28,18 @@ type LiveEntry = SpawnedRun & {
   scrollback: ScrollbackRing;
   cols: number;
   rows: number;
+};
+
+/**
+ * REV-S3: `skillPrefix` length is ≤ 1 (REV-S4 cap in the Zod schema). `cwd` is
+ * the workspace's normalized path; falls back to agent.cwd / $HOME / cwd inside
+ * `start()` if absent.
+ */
+export type StartOpts = {
+  prompt: string;
+  agentId: string;
+  cwd: string;
+  skillPrefix: string[];
 };
 
 const live = new Map<string, LiveEntry>();
@@ -71,17 +83,22 @@ export const runDispatcher = {
   /**
    * Start a PTY for the given run. Idempotent if `runId` is already live.
    * Throws `AppError("agent_unavailable")` if the agent's CLI isn't on PATH.
+   *
+   * REV-S3 (D20 spike outcome): finalPrompt is composed by space-joining the
+   * skill prefix (≤1 element per REV-S4) with the user prompt. The dispatcher
+   * never writes to stdin in arg-mode (REV-S2); pty-daemon's spawnAgent
+   * substitutes `{{prompt}}` in agent.args[].
    */
-  async start(runId: string, taskPrompt: string, agentId: string): Promise<void> {
+  async start(runId: string, opts: StartOpts): Promise<void> {
     if (live.has(runId)) {
       log.warn({ run_id: runId }, "start ignored — already live");
       return;
     }
 
     const agentService = createAgentService();
-    const agent = agentService.get(agentId);
+    const agent = agentService.get(opts.agentId);
     if (!agent) {
-      throw new AppError("not_found", `Agent "${agentId}" not found`);
+      throw new AppError("not_found", `Agent "${opts.agentId}" not found`);
     }
     if (!agent.available) {
       throw new AppError(
@@ -90,14 +107,29 @@ export const runDispatcher = {
       );
     }
 
-    // Look up which task this run belongs to so we can include task_id in events.
+    // Look up which task + workspace this run belongs to so we can include
+    // task_id and (per D4 / ARCH-E3) optional workspace_id in events.
     const { db } = getDb();
     const runRepo = new RunRepository(db);
     const runRow = runRepo.findById(runId);
     if (!runRow) throw new AppError("not_found", `Run "${runId}" not found`);
     const taskId = runRow.task_id;
+    const taskRepo = new TaskRepository(db);
+    const taskRow = taskRepo.findById(taskId);
+    const workspaceId = taskRow?.workspace_id;
 
-    const cwd = agent.cwd ?? process.env.HOME ?? process.cwd();
+    // Cwd resolution chain: workspace.path (opts.cwd) > agent.cwd > $HOME > cwd.
+    const cwd = opts.cwd ?? agent.cwd ?? process.env.HOME ?? process.cwd();
+
+    // REV-S3: space-join. Empty prefix → bare prompt. Non-empty → "{skill} {prompt}".
+    const finalPrompt =
+      opts.skillPrefix.length === 0 ? opts.prompt : `${opts.skillPrefix.join(" ")} ${opts.prompt}`;
+
+    log.info(
+      { run_id: runId, agent_id: opts.agentId, skills: opts.skillPrefix },
+      "skills prefixed",
+    );
+
     mkdirSync(runDir(runId), { recursive: true, mode: 0o700 });
     const writer = transcriptWriter(transcriptPath(runId));
     const runService = createRunServiceInternal();
@@ -112,18 +144,27 @@ export const runDispatcher = {
 
     const cols = 120;
     const rows = 30;
-    const handle = spawnAgent({ runId, agent, prompt: taskPrompt, cwd, env, cols, rows });
+    const handle = spawnAgent({ runId, agent, prompt: finalPrompt, cwd, env, cols, rows });
     const scrollback = new ScrollbackRing();
-    const entry: LiveEntry = { ...handle, writer, taskId, agentId, scrollback, cols, rows };
+    const entry: LiveEntry = {
+      ...handle,
+      writer,
+      taskId,
+      agentId: opts.agentId,
+      scrollback,
+      cols,
+      rows,
+    };
     live.set(runId, entry);
     const startedAt = handle.startedAt;
-    log.info({ run_id: runId, agent_id: agentId, pid: handle.pid }, "run started");
+    log.info({ run_id: runId, agent_id: opts.agentId, pid: handle.pid }, "run started");
 
     bus.emit({
       type: "run.started",
       task_id: taskId,
+      workspace_id: workspaceId,
       run_id: runId,
-      agent_id: agentId,
+      agent_id: opts.agentId,
       at: startedAt.toISOString(),
     });
 
@@ -132,6 +173,7 @@ export const runDispatcher = {
       bus.emit({
         type: "run.progress",
         task_id: taskId,
+        workspace_id: workspaceId,
         run_id: runId,
         elapsed_ms: Date.now() - startedAt.getTime(),
         bytes_emitted: writer.bytesWritten,
@@ -172,6 +214,7 @@ export const runDispatcher = {
       bus.emit({
         type: "run.ended",
         task_id: taskId,
+        workspace_id: workspaceId,
         run_id: runId,
         exit_code: exitCode ?? null,
         duration_ms: Date.now() - startedAt.getTime(),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { skillDefinitionSchema } from "./skill.js";
 
 export const AGENT_TIERS = ["v1", "future"] as const;
 export const agentTierSchema = z.enum(AGENT_TIERS);
@@ -18,6 +19,7 @@ export const agentSchema = z.object({
   available: z.boolean(),
   version: z.string().nullable(),
   registered_at: z.string().datetime(),
+  skills: z.array(skillDefinitionSchema).default([]),
 });
 export type Agent = z.infer<typeof agentSchema>;
 

@@ -1,4 +1,8 @@
-import { agentListResponseSchema, agentResponseSchema } from "@vibemaestro/core";
+import {
+  agentListResponseSchema,
+  agentResponseSchema,
+  skillDefinitionSchema,
+} from "@vibemaestro/core";
 import { z } from "zod";
 import { createAgentService } from "../services/agent-service.js";
 import { procedure, router } from "../trpc.js";
@@ -44,5 +48,17 @@ export const agentsRouter = router({
       const svc = createAgentService();
       svc.delete(input.id);
       return { ok: true };
+    }),
+
+  /**
+   * Admin/dev helper for replacing an agent's skill registry. v1 has no UI for
+   * this; the seed populates initial skills. Future v1.x can add a Settings page.
+   */
+  registerSkills: procedure
+    .input(z.object({ id: z.string(), skills: z.array(skillDefinitionSchema) }))
+    .output(agentResponseSchema)
+    .mutation(({ input }) => {
+      const svc = createAgentService();
+      return { data: svc.registerSkills(input.id, input.skills) };
     }),
 });

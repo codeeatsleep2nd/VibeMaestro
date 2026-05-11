@@ -38,3 +38,16 @@ export function newEventId(): string {
 export function newToastId(): string {
   return ulid();
 }
+
+/**
+ * Workspace IDs are kebab-case slugs prefixed `ws_`. The system-created default
+ * workspace is `ws_local`. User-created workspaces use a short ULID-derived
+ * suffix for uniqueness without exposing creation time.
+ */
+export function newWorkspaceId(): string {
+  return `ws_${ulid().toLowerCase().slice(-12)}`;
+}
+
+export function isWorkspaceId(value: string): boolean {
+  return /^ws_[a-z0-9_-]+$/.test(value);
+}

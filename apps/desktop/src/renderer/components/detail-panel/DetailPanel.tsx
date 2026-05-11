@@ -1,7 +1,9 @@
-import type { Agent, Task } from "@vibemaestro/core";
+import type { Agent, Phase, Task, Workspace } from "@vibemaestro/core";
+import { PHASES, resolvePhaseSkills } from "@vibemaestro/core";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useApproveTask, useCancelTask, useRejectTask, useRunTask } from "../../hooks/useTasks.js";
+import { useInvokePhase } from "../../hooks/useWorkspaces.js";
 import { cn } from "../../lib/cn.js";
 import { AgentChip } from "../agent/AgentChip.js";
 import { StatusIndicator } from "../status/StatusIndicator.js";
@@ -11,6 +13,7 @@ import { TranscriptTab } from "./TranscriptTab.js";
 type Props = {
   task: Task | null;
   agents: Map<string, Agent>;
+  workspaces: Map<string, Workspace>;
   onClose: () => void;
 };
 
@@ -22,7 +25,7 @@ const PANEL_LABELS: Record<Tab, string> = {
   diff: "Diff",
 };
 
-export function DetailPanel({ task, agents, onClose }: Props) {
+export function DetailPanel({ task, agents, workspaces, onClose }: Props) {
   const [tab, setTab] = useState<Tab>("terminal");
   // Reset tab to terminal when task changes
   useEffect(() => {
@@ -81,7 +84,7 @@ export function DetailPanel({ task, agents, onClose }: Props) {
         {tab === "diff" && <DiffPlaceholder />}
       </div>
 
-      <PanelFooter task={task} onClose={onClose} />
+      <PanelFooter task={task} workspaces={workspaces} onClose={onClose} />
     </aside>
   );
 }
@@ -135,14 +138,52 @@ function DiffPlaceholder() {
   );
 }
 
-function PanelFooter({ task, onClose }: { task: Task; onClose: () => void }) {
+function PanelFooter({
+  task,
+  workspaces,
+  onClose,
+}: {
+  task: Task;
+  workspaces: Map<string, Workspace>;
+  onClose: () => void;
+}) {
   const run = useRunTask();
   const approve = useApproveTask();
   const reject = useRejectTask();
   const cancel = useCancelTask();
+  const invokePhase = useInvokePhase();
+
+  const workspace = workspaces.get(task.workspace_id) ?? null;
+
+  // D18: per-phase Run buttons live HERE (not in the WorkspaceStrip).
+  // Disabled when a run is live for the task (D9 guard).
+  const liveRun = task.status === "running";
+  const effectivePhases = workspace
+    ? resolvePhaseSkills(workspace, task)
+    : { planning: [], running: [], reviewing: [], complete: [] };
+
+  const phaseButtons = (PHASES as readonly Phase[])
+    .filter((p) => p !== "running") // "Run" handles the running phase via tasks.run with state transition
+    .map((p) => {
+      const skill = effectivePhases[p][0];
+      if (!skill) return null;
+      return (
+        <button
+          key={p}
+          type="button"
+          onClick={() => invokePhase.mutate({ id: task.id, phase: p })}
+          disabled={liveRun || invokePhase.isPending}
+          title={`Spawn a fresh run with ${skill} (no state change)`}
+          className="px-[var(--space-3)] py-[var(--space-2)] rounded-sm border border-border-default text-meta text-text-secondary hover:text-text-primary hover:border-border-strong transition-colors disabled:opacity-50 disabled:cursor-not-allowed capitalize"
+        >
+          Run {p}
+        </button>
+      );
+    })
+    .filter(Boolean);
 
   const Wrap = ({ children }: { children: React.ReactNode }) => (
-    <footer className="border-t border-border-subtle px-[var(--space-5)] py-[var(--space-3)] flex items-center justify-end gap-[var(--space-2)]">
+    <footer className="border-t border-border-subtle px-[var(--space-5)] py-[var(--space-3)] flex items-center justify-end gap-[var(--space-2)] flex-wrap">
       {children}
     </footer>
   );
@@ -150,6 +191,7 @@ function PanelFooter({ task, onClose }: { task: Task; onClose: () => void }) {
   if (task.status === "backlog") {
     return (
       <Wrap>
+        {phaseButtons}
         <button
           type="button"
           onClick={() => run.mutate(task.id)}
@@ -178,6 +220,7 @@ function PanelFooter({ task, onClose }: { task: Task; onClose: () => void }) {
   if (task.status === "reviewing") {
     return (
       <Wrap>
+        {phaseButtons}
         <button
           type="button"
           onClick={() => reject.mutate(task.id)}
@@ -200,5 +243,6 @@ function PanelFooter({ task, onClose }: { task: Task; onClose: () => void }) {
       </Wrap>
     );
   }
-  return null;
+  // complete / blocked / error — phase buttons remain available for invoke-after-fact.
+  return phaseButtons.length > 0 ? <Wrap>{phaseButtons}</Wrap> : null;
 }

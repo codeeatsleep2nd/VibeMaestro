@@ -1,12 +1,26 @@
+import type { Agent, Workspace } from "@vibemaestro/core";
 import { Plus, SunMoon } from "lucide-react";
 import { type Theme, useTheme } from "../../hooks/useTheme.js";
 import { cn } from "../../lib/cn.js";
+import { WorkspacePicker } from "../workspace/WorkspacePicker.js";
 
 type Props = {
   onCreate: () => void;
+  workspaces: Workspace[];
+  agents: Agent[];
+  activeWorkspaceId: string;
+  onSelectWorkspace: (id: string) => void;
+  onCreateWorkspace: () => void;
 };
 
-export function Topbar({ onCreate }: Props) {
+export function Topbar({
+  onCreate,
+  workspaces,
+  agents,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onCreateWorkspace,
+}: Props) {
   const [theme, cycleTheme] = useTheme();
 
   return (
@@ -15,7 +29,7 @@ export function Topbar({ onCreate }: Props) {
                  flex items-center justify-between px-[var(--space-5)]
                  bg-surface-base [-webkit-app-region:drag] select-none"
     >
-      {/* Logo + name */}
+      {/* Logo + name + workspace picker */}
       <div className="flex items-center gap-[var(--space-3)] [-webkit-app-region:no-drag]">
         <span
           aria-hidden="true"
@@ -32,6 +46,13 @@ export function Topbar({ onCreate }: Props) {
         <span className="font-display text-text-primary tracking-tight" style={{ fontWeight: 600 }}>
           VibeMaestro
         </span>
+        <WorkspacePicker
+          workspaces={workspaces}
+          agents={agents}
+          activeId={activeWorkspaceId}
+          onSelect={onSelectWorkspace}
+          onCreate={onCreateWorkspace}
+        />
         <span className="text-caption text-text-tertiary">v0.1 · prototype</span>
       </div>
 

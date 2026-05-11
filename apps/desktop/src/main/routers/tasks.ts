@@ -1,6 +1,7 @@
 import {
   taskCreateInputSchema,
   taskIdInputSchema,
+  taskInvokePhaseInputSchema,
   taskListInputSchema,
   taskListResponseSchema,
   taskResponseSchema,
@@ -44,6 +45,18 @@ export const tasksRouter = router({
     .mutation(({ input }) => {
       const svc = createTaskService();
       return { data: svc.run(input.id).task };
+    }),
+
+  /**
+   * D9: spawn a fresh run with the task's effective phase skills, without
+   * mutating task.status. Rejected if a run is already live for this task.
+   */
+  invokePhase: procedure
+    .input(taskInvokePhaseInputSchema)
+    .output(taskResponseSchema)
+    .mutation(({ input }) => {
+      const svc = createTaskService();
+      return { data: svc.invokePhase(input.id, input.phase).task };
     }),
 
   approve: procedure

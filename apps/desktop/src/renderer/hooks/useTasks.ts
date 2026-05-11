@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Task, TaskListInput } from "@vibemaestro/core";
+import type { PhaseSkillsOverride, Task, TaskListInput } from "@vibemaestro/core";
 import { trpc } from "../lib/trpc.js";
 
 const DEFAULT_INPUT: TaskListInput = {
@@ -8,10 +8,18 @@ const DEFAULT_INPUT: TaskListInput = {
   sort: "updated_at_desc",
 };
 
-export function useTasks() {
+/**
+ * When `workspaceId` is provided, the list is scoped to that workspace; otherwise
+ * the unscoped query is used (kept for back-compat with the empty-state path that
+ * runs before a workspace is selected).
+ */
+export function useTasks(workspaceId?: string) {
+  const input: TaskListInput = workspaceId
+    ? { ...DEFAULT_INPUT, workspace_id: workspaceId }
+    : DEFAULT_INPUT;
   return useQuery({
-    queryKey: ["tasks", "list", DEFAULT_INPUT],
-    queryFn: () => trpc.tasks.list.query(DEFAULT_INPUT),
+    queryKey: ["tasks", "list", input],
+    queryFn: () => trpc.tasks.list.query(input),
     staleTime: 30_000,
   });
 }
@@ -56,11 +64,18 @@ export function useCancelTask() {
   });
 }
 
+export type CreateTaskInput = {
+  workspace_id: string;
+  title: string;
+  prompt: string;
+  agent_id?: string;
+  phase_skills_override?: PhaseSkillsOverride;
+};
+
 export function useCreateTask() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { title: string; prompt: string; agent_id: string }) =>
-      trpc.tasks.create.mutate(input),
+    mutationFn: (input: CreateTaskInput) => trpc.tasks.create.mutate(input),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
   });
 }
