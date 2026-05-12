@@ -2,7 +2,13 @@ import type { Agent, Phase, Task, Workspace } from "@vibemaestro/core";
 import { PHASES, resolvePhaseSkills } from "@vibemaestro/core";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useApproveTask, useCancelTask, useRejectTask, useRunTask } from "../../hooks/useTasks.js";
+import {
+  useApproveTask,
+  useCancelTask,
+  useRejectTask,
+  useRunTask,
+  useSubmitForReview,
+} from "../../hooks/useTasks.js";
 import { useInvokePhase } from "../../hooks/useWorkspaces.js";
 import { cn } from "../../lib/cn.js";
 import { AgentChip } from "../agent/AgentChip.js";
@@ -15,6 +21,20 @@ type Props = {
   agents: Map<string, Agent>;
   workspaces: Map<string, Workspace>;
   onClose: () => void;
+};
+
+const PHASE_LABEL: Record<Phase, string> = {
+  planning: "Planning",
+  running: "Implementing",
+  reviewing: "Reviewing",
+  complete: "Complete",
+};
+
+const STATUS_TO_ACTIVE_PHASE: Partial<Record<Task["status"], Phase>> = {
+  backlog: "planning",
+  running: "running",
+  reviewing: "reviewing",
+  complete: "complete",
 };
 
 type Tab = "terminal" | "transcript" | "diff";
@@ -44,6 +64,11 @@ export function DetailPanel({ task, agents, workspaces, onClose }: Props) {
 
   if (!task) return null;
   const agent = agents.get(task.agent_id);
+  const workspace = workspaces.get(task.workspace_id) ?? null;
+  const effectivePhases = workspace
+    ? resolvePhaseSkills(workspace, task)
+    : { planning: [], running: [], reviewing: [], complete: [] };
+  const activePhase = STATUS_TO_ACTIVE_PHASE[task.status] ?? null;
 
   return (
     <aside
@@ -60,6 +85,7 @@ export function DetailPanel({ task, agents, workspaces, onClose }: Props) {
       }}
     >
       <PanelHeader task={task} agent={agent} onClose={onClose} />
+      <PhaseSkillStrip phases={effectivePhases} activePhase={activePhase} />
       <div className="border-b border-border-subtle px-[var(--space-5)] flex gap-[var(--space-4)]">
         {(Object.keys(PANEL_LABELS) as Tab[]).map((t) => (
           <button
@@ -125,6 +151,68 @@ function PanelHeader({
   );
 }
 
+/**
+ * Compact row under the panel header summarizing the effective phase skills for
+ * this task (override > workspace default). The active phase (matching task.status)
+ * gets an accent rule on the left and brighter foreground; the others render in
+ * muted secondary text. Phases without a configured skill show "—".
+ */
+function PhaseSkillStrip({
+  phases,
+  activePhase,
+}: {
+  phases: ReturnType<typeof resolvePhaseSkills>;
+  activePhase: Phase | null;
+}) {
+  return (
+    <section
+      aria-label="Phase skills"
+      className="px-[var(--space-5)] py-[var(--space-3)] border-b border-border-subtle bg-surface-base"
+    >
+      <div className="text-caption font-mono uppercase tracking-wider text-text-tertiary mb-[var(--space-2)]">
+        Phase skills
+      </div>
+      <ul className="flex flex-col gap-[var(--space-1)]">
+        {(PHASES as readonly Phase[]).map((phase) => {
+          const skill = phases[phase][0];
+          const isActive = phase === activePhase;
+          return (
+            <li
+              key={phase}
+              className={cn(
+                "flex items-center gap-[var(--space-3)] pl-[var(--space-2)]",
+                "border-l-2",
+                isActive ? "border-accent-base" : "border-transparent",
+              )}
+            >
+              <span
+                className={cn(
+                  "text-caption font-mono uppercase tracking-wider w-[78px]",
+                  isActive ? "text-text-primary" : "text-text-tertiary",
+                )}
+              >
+                {PHASE_LABEL[phase]}
+              </span>
+              {skill ? (
+                <span
+                  className={cn(
+                    "font-mono text-meta",
+                    isActive ? "text-text-primary" : "text-text-secondary",
+                  )}
+                >
+                  {skill}
+                </span>
+              ) : (
+                <span className="text-meta text-text-tertiary italic">— not configured —</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function DiffPlaceholder() {
   return (
     <div className="flex-1 flex items-center justify-center text-center px-[var(--space-5)]">
@@ -151,6 +239,7 @@ function PanelFooter({
   const approve = useApproveTask();
   const reject = useRejectTask();
   const cancel = useCancelTask();
+  const submitForReview = useSubmitForReview();
   const invokePhase = useInvokePhase();
 
   const workspace = workspaces.get(task.workspace_id) ?? null;
@@ -213,6 +302,15 @@ function PanelFooter({
           className="px-[var(--space-3)] py-[var(--space-2)] rounded-sm border border-border-default text-meta text-text-secondary hover:text-text-primary hover:border-border-strong transition-colors disabled:opacity-50"
         >
           Cancel run
+        </button>
+        <button
+          type="button"
+          onClick={() => submitForReview.mutate(task.id)}
+          disabled={submitForReview.isPending}
+          title="Move to Reviewing — fires the reviewing-phase skill if configured"
+          className="px-[var(--space-4)] py-[var(--space-2)] rounded-sm bg-accent-base text-text-on-accent text-meta hover:bg-accent-hover transition-colors duration-[var(--duration-fast)] disabled:opacity-50"
+        >
+          Submit for review
         </button>
       </Wrap>
     );

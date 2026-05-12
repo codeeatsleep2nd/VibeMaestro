@@ -1,6 +1,7 @@
 import type { Agent, PhaseSkillsOverride, Workspace } from "@vibemaestro/core";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useDiscoveredSkills } from "../../hooks/useDiscoveredSkills.js";
 import { useCreateTask } from "../../hooks/useTasks.js";
 import { cn } from "../../lib/cn.js";
 import { AgentChip } from "../agent/AgentChip.js";
@@ -50,9 +51,9 @@ export function CreateTaskModal({ open, onClose, agents, workspace, initialPromp
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose, initialPrompt, title]);
 
-  if (!open) return null;
+  const discoveredSkills = useDiscoveredSkills(agentId || null, workspace?.id ?? null);
 
-  const selectedAgent = agents.find((a) => a.id === agentId) ?? null;
+  if (!open) return null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +171,7 @@ export function CreateTaskModal({ open, onClose, agents, workspace, initialPromp
               inheritFrom={workspace.phase_skills}
               value={phaseSkillsOverride}
               onChange={setPhaseSkillsOverride}
-              agent={selectedAgent}
+              skills={discoveredSkills}
             />
           </div>
         ) : null}

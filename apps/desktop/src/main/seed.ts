@@ -20,17 +20,78 @@ const CODEX_SKILLS: SkillDefinition[] = [
 ];
 
 /**
- * Idempotent dev seed. Three responsibilities, all safe to re-run:
- *   1. Populate agent skill registries (Claude Code + Codex) if empty.
- *   2. Trigger ws_local lazy-fill (path = HOME, default_agent_id = first v1 agent).
- *   3. If tasks table is empty, seed starter rows so the board has visible content.
+ * Canonical agent invocation config. Re-applied on every boot via upsert so the
+ * config converges across upgrades without requiring a new migration per tweak.
+ *
+ * Claude Code: interactive mode with --dangerously-skip-permissions ("YOLO") and
+ *   the prompt as a positional CLI arg. The PTY stays alive across task phases —
+ *   the agent doesn't exit between Run/Approve/etc. Skills are activated by
+ *   prepending the slash command to the prompt (REV-S3 space-join in the dispatcher).
+ *
+ * Codex: same interactive shape. `codex` (no `exec`) launches the REPL with the
+ *   positional prompt as the first message.
+ */
+const AGENT_INVOCATION: Record<
+  string,
+  { command: string; args: string[]; prompt_via: "stdin" | "arg" }
+> = {
+  "claude-code": {
+    command: "claude",
+    args: ["--dangerously-skip-permissions", "{{prompt}}"],
+    prompt_via: "arg",
+  },
+  codex: {
+    command: "codex",
+    args: ["{{prompt}}"],
+    prompt_via: "arg",
+  },
+};
+
+/**
+ * Idempotent dev seed. Four responsibilities, all safe to re-run:
+ *   1. Converge agent invocation config (command + args + prompt_via) to the canonical
+ *      values in AGENT_INVOCATION. Re-applied every boot so config changes ship without
+ *      a fresh migration per tweak.
+ *   2. Populate agent skill registries (Claude Code + Codex) if empty.
+ *   3. Trigger ws_local lazy-fill (path = HOME, default_agent_id = first v1 agent).
+ *   4. If tasks table is empty, seed starter rows so the board has visible content.
  */
 export function seedIfEmpty(): void {
   const { db } = getDb();
   const taskRepo = new TaskRepository(db);
   const agentRepo = new AgentRepository(db);
 
-  // (1) Agent skill registries. setSkills overwrites; only run if currently empty so
+  // (1) Converge agent invocation. The boot path runs every launch, so this acts as
+  // a soft migration: existing DBs get the canonical config without bumping migrations.
+  for (const [agentId, invocation] of Object.entries(AGENT_INVOCATION)) {
+    const agent = agentRepo.findById(agentId);
+    if (!agent) continue;
+    const argsJson = JSON.stringify(invocation.args);
+    const dbArgsJson = JSON.stringify(agent.args);
+    const drift =
+      agent.command !== invocation.command ||
+      agent.prompt_via !== invocation.prompt_via ||
+      dbArgsJson !== argsJson;
+    if (drift) {
+      agentRepo.upsert({
+        ...agent,
+        command: invocation.command,
+        args: invocation.args,
+        prompt_via: invocation.prompt_via,
+      });
+      log.info(
+        {
+          agent_id: agentId,
+          command: invocation.command,
+          args: invocation.args,
+          prompt_via: invocation.prompt_via,
+        },
+        "agent invocation converged",
+      );
+    }
+  }
+
+  // (2) Agent skill registries. setSkills overwrites; only run if currently empty so
   // the user can hand-edit and not have us stomp on their changes on next boot.
   for (const [agentId, skills] of [
     ["claude-code", CLAUDE_CODE_SKILLS],
@@ -43,7 +104,7 @@ export function seedIfEmpty(): void {
     }
   }
 
-  // (2) Touch the local workspace via the service to trigger lazy-fill.
+  // (3) Touch the local workspace via the service to trigger lazy-fill.
   createWorkspaceService().get(DEFAULT_WORKSPACE_ID);
 
   // (3) Task seed — only if completely empty.

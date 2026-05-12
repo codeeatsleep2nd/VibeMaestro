@@ -64,6 +64,14 @@ export function useCancelTask() {
   });
 }
 
+export function useSubmitForReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => trpc.tasks.submitForReview.mutate({ id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+  });
+}
+
 export type CreateTaskInput = {
   workspace_id: string;
   title: string;

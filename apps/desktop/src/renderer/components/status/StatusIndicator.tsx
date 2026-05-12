@@ -29,7 +29,7 @@ export function StatusIndicator({ status, size = 12, withLabel = false }: Props)
 function labelFor(s: TaskStatus): string {
   switch (s) {
     case "running":
-      return "Running";
+      return "Implementing";
     case "reviewing":
       return "Awaiting review";
     case "complete":
@@ -39,7 +39,7 @@ function labelFor(s: TaskStatus): string {
     case "error":
       return "Error";
     case "backlog":
-      return "Backlog";
+      return "Planning";
   }
 }
 

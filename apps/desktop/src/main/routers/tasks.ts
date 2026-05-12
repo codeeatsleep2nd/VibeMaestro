@@ -59,6 +59,18 @@ export const tasksRouter = router({
       return { data: svc.invokePhase(input.id, input.phase).task };
     }),
 
+  /**
+   * User-triggered running → reviewing transition. Use this for interactive
+   * agents that don't exit on their own; auto-fires the reviewing-phase skill.
+   */
+  submitForReview: procedure
+    .input(taskIdInputSchema)
+    .output(taskResponseSchema)
+    .mutation(({ input }) => {
+      const svc = createTaskService();
+      return { data: svc.submitForReview(input.id) };
+    }),
+
   approve: procedure
     .input(taskIdInputSchema)
     .output(taskResponseSchema)

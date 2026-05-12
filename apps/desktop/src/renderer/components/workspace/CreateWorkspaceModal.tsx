@@ -1,6 +1,7 @@
 import { type Agent, emptyPhaseSkills, type PhaseSkills } from "@vibemaestro/core";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useDiscoveredSkills } from "../../hooks/useDiscoveredSkills.js";
 import { useCreateWorkspace } from "../../hooks/useWorkspaces.js";
 import { cn } from "../../lib/cn.js";
 import { AgentChip } from "../agent/AgentChip.js";
@@ -36,9 +37,9 @@ export function CreateWorkspaceModal({ open, onClose, agents, onCreated }: Props
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose, agentId, v1Agents]);
 
-  if (!open) return null;
+  const discoveredSkills = useDiscoveredSkills(agentId || null, null);
 
-  const selectedAgent = agents.find((a) => a.id === agentId) ?? null;
+  if (!open) return null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,14 +140,7 @@ export function CreateWorkspaceModal({ open, onClose, agents, onCreated }: Props
             <button
               type="button"
               onClick={async () => {
-                // Electron native dialog wired via preload IPC in plan #9 environment.
-                // If the bridge is not present (e.g., dev with no preload), fall through.
-                const bridge = (
-                  window as unknown as {
-                    vibemaestro?: { selectDirectory?: () => Promise<string | null> };
-                  }
-                ).vibemaestro;
-                const result = await bridge?.selectDirectory?.();
+                const result = await window.vmBridge.dialog.selectDirectory();
                 if (typeof result === "string") setPath(result);
               }}
               className="px-[var(--space-3)] py-[var(--space-2)] text-meta rounded-sm
@@ -188,7 +182,7 @@ export function CreateWorkspaceModal({ open, onClose, agents, onCreated }: Props
             mode="workspace"
             value={phaseSkills}
             onChange={setPhaseSkills}
-            agent={selectedAgent}
+            skills={discoveredSkills}
           />
         </div>
 

@@ -34,6 +34,25 @@ export function createTaskService() {
     return new Date().toISOString();
   }
 
+  /**
+   * Before spawning a new run for a task, cancel the previous live run if any.
+   * Without this, calling `run` or `invokePhase` while an interactive agent is
+   * still attached leaves the old PTY orphaned (still alive in the dispatcher's
+   * `live` map, holding a node-pty handle and a transcript file) while the task
+   * row's `current_run_id` points at the new one. The user can no longer see or
+   * interact with the old agent. SIGTERM is fast (~ms) and the dispatcher's
+   * 2 s SIGKILL fallback handles a misbehaving CLI.
+   */
+  function cancelExistingLiveRun(task: Task, reason: string): void {
+    if (task.current_run_id && runDispatcher.isRunning(task.current_run_id)) {
+      log.info(
+        { task_id: task.id, run_id: task.current_run_id, reason },
+        "cancelling existing live run before spawning new one",
+      );
+      runDispatcher.cancel(task.current_run_id);
+    }
+  }
+
   function create(input: TaskCreateInput): Task {
     // Workspace exists check (also lazy-fills ws_local if first read).
     const workspace = createWorkspaceService().require(input.workspace_id);
@@ -48,9 +67,9 @@ export function createTaskService() {
     }
 
     const at = nowIso();
-    return db.transaction(() => {
+    const task = db.transaction(() => {
       const id = taskRepo.allocateNextSlug();
-      const task: Task = {
+      const row: Task = {
         id,
         title: input.title,
         prompt: input.prompt,
@@ -63,13 +82,33 @@ export function createTaskService() {
         updated_at: at,
         metadata: input.metadata ?? {},
       };
-      taskRepo.insert(task);
+      taskRepo.insert(row);
       log.info(
         { task_id: id, workspace_id: workspace.id, agent_id: effectiveAgentId },
         "task created",
       );
-      return task;
+      return row;
     });
+
+    // Auto-fire the planning phase skill on creation if one is configured. The
+    // task stays in 'backlog' status (which the UI labels "Planning"); the
+    // agent just gets the planning-phase invocation. If no planning skill is
+    // configured, the agent doesn't auto-spawn — the user clicks Run manually.
+    const planning = resolvePhaseSkills(workspace, task).planning;
+    if (planning.length > 0) {
+      try {
+        invokePhase(task.id, "planning");
+      } catch (err) {
+        log.warn(
+          {
+            task_id: task.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          "post-create planning auto-fire failed — task created in backlog",
+        );
+      }
+    }
+    return task;
   }
 
   function get(id: string): Task {
@@ -99,6 +138,10 @@ export function createTaskService() {
    * subscription — keeping it post-commit makes that swap a one-line change.
    */
   function run(id: string): { task: Task; run_id: string } {
+    const existing = taskRepo.findById(id);
+    if (!existing) throw new AppError("not_found", `Task "${id}" not found`);
+    cancelExistingLiveRun(existing, "tasks.run");
+
     const result = db.transaction(() => {
       const task = taskRepo.findById(id);
       if (!task) throw new AppError("not_found", `Task "${id}" not found`);
@@ -203,14 +246,12 @@ export function createTaskService() {
     const task = taskRepo.findById(id);
     if (!task) throw new AppError("not_found", `Task "${id}" not found`);
 
-    // Concurrency guard (D9): one live PTY per task.
-    if (task.current_run_id && runDispatcher.isRunning(task.current_run_id)) {
-      throw new AppError(
-        "invalid_state",
-        `Task has a live run "${task.current_run_id}"; cancel or wait for it to finish.`,
-        { current_run_id: task.current_run_id },
-      );
-    }
+    // D9 (revised): rather than reject, cancel the existing live run and spawn
+    // fresh. The "one PTY per task" invariant is preserved by the SIGTERM
+    // happening before the new spawn. This is what the user expects when they
+    // click a different phase Run button while an agent is still attached:
+    // "switch to this phase recipe", not "you must cancel first".
+    cancelExistingLiveRun(task, `tasks.invokePhase(${phase})`);
 
     const workspace = workspaceRepo.findById(task.workspace_id);
     if (!workspace) {
@@ -299,6 +340,68 @@ export function createTaskService() {
     return { task: result.task, run_id: result.run_id };
   }
 
+  /**
+   * Auto-fire a phase skill after a state transition. Safe to call from any
+   * mutation; swallows dispatcher errors so a failed agent spawn doesn't
+   * unwind an already-committed status change. Skips the spawn if the target
+   * phase has no skill configured (matches "if there's any" from the user
+   * intent — empty phase = no agent fires).
+   */
+  function autoFirePhaseIfConfigured(taskId: string, phase: Phase, reason: string): void {
+    const task = taskRepo.findById(taskId);
+    if (!task) return;
+    const workspace = workspaceRepo.findById(task.workspace_id);
+    if (!workspace) return;
+    const skills = resolvePhaseSkills(workspace, task)[phase];
+    if (skills.length === 0) return;
+    log.info({ task_id: taskId, phase, reason }, "auto-firing phase skill");
+    try {
+      invokePhase(taskId, phase);
+    } catch (err) {
+      log.warn(
+        {
+          task_id: taskId,
+          phase,
+          reason,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        "auto-fire phase failed — state change preserved, agent did not spawn",
+      );
+    }
+  }
+
+  /**
+   * User-triggered running → reviewing transition. Interactive YOLO agents
+   * don't exit on their own, so the `agent_exit_0` auto-transition (plan #3)
+   * never fires; the user signals "done with planning/execution" via this call.
+   * Auto-fires the reviewing-phase skill if one is configured.
+   */
+  function submitForReview(id: string): Task {
+    const updated = db.transaction(() => {
+      const task = taskRepo.findById(id);
+      if (!task) throw new AppError("not_found", `Task "${id}" not found`);
+      const newStatus = transition(task.status, "submit_for_review");
+      const at = nowIso();
+      taskRepo.updateStatus(id, newStatus, task.current_run_id, at);
+      return {
+        from: task.status,
+        task: { ...task, status: newStatus, updated_at: at },
+        workspace_id: task.workspace_id,
+        at,
+      };
+    });
+    bus.emit({
+      type: "task.state_changed",
+      task_id: id,
+      workspace_id: updated.workspace_id,
+      from: updated.from,
+      to: updated.task.status,
+      at: updated.at,
+    });
+    autoFirePhaseIfConfigured(id, "reviewing", "tasks.submitForReview");
+    return updated.task;
+  }
+
   function approve(id: string): Task {
     const updated = db.transaction(() => {
       const task = taskRepo.findById(id);
@@ -321,6 +424,8 @@ export function createTaskService() {
       to: updated.task.status,
       at: updated.at,
     });
+    // Entered "complete" phase — fire the complete-phase skill if configured.
+    autoFirePhaseIfConfigured(id, "complete", "tasks.approve");
     return updated.task;
   }
 
@@ -346,6 +451,8 @@ export function createTaskService() {
       to: updated.task.status,
       at: updated.at,
     });
+    // Re-entered "planning" phase (backlog status) — fire the planning skill if configured.
+    autoFirePhaseIfConfigured(id, "planning", "tasks.reject");
     return updated.task;
   }
 
@@ -406,5 +513,16 @@ export function createTaskService() {
     });
   }
 
-  return { create, get, list, run, invokePhase, approve, reject, cancel, simulateAgentExit };
+  return {
+    create,
+    get,
+    list,
+    run,
+    invokePhase,
+    submitForReview,
+    approve,
+    reject,
+    cancel,
+    simulateAgentExit,
+  };
 }

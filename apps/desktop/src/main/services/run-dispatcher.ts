@@ -25,10 +25,23 @@ type LiveEntry = SpawnedRun & {
   progressTimer?: ReturnType<typeof setInterval>;
   taskId: string;
   agentId: string;
+  workspaceId?: string;
   scrollback: ScrollbackRing;
   cols: number;
   rows: number;
+  /** Wall-clock of the most recent PTY data chunk. Drives input-idle detection. */
+  lastDataAt: number;
+  /** True while the agent is parked at the REPL prompt awaiting user input. */
+  waitingForInput: boolean;
 };
+
+/**
+ * Idle window after which the agent is considered "waiting for user input".
+ * Interactive YOLO agents (Claude Code / Codex) animate UI via Ink while busy,
+ * so PTY data flow is constant during work. A gap of this many ms = the agent
+ * has returned to the REPL prompt and is waiting on the user.
+ */
+const IDLE_INPUT_REQUESTED_MS = 3000;
 
 /**
  * REV-S3: `skillPrefix` length is ≤ 1 (REV-S4 cap in the Zod schema). `cwd` is
@@ -151,9 +164,12 @@ export const runDispatcher = {
       writer,
       taskId,
       agentId: opts.agentId,
+      workspaceId,
       scrollback,
       cols,
       rows,
+      lastDataAt: Date.now(),
+      waitingForInput: false,
     };
     live.set(runId, entry);
     const startedAt = handle.startedAt;
@@ -168,7 +184,8 @@ export const runDispatcher = {
       at: startedAt.toISOString(),
     });
 
-    // 1Hz progress tick — drives the conductor strip's elapsed/byte counters.
+    // 1Hz progress tick — drives the conductor strip's elapsed/byte counters
+    // AND the input-idle detector. We piggyback so we don't add a second timer.
     entry.progressTimer = setInterval(() => {
       bus.emit({
         type: "run.progress",
@@ -178,6 +195,21 @@ export const runDispatcher = {
         elapsed_ms: Date.now() - startedAt.getTime(),
         bytes_emitted: writer.bytesWritten,
       });
+
+      // Cross-the-threshold idle detection. We only emit on the rising edge
+      // (busy → waiting); state stays "waiting" until output resumes.
+      const idleMs = Date.now() - entry.lastDataAt;
+      if (idleMs >= IDLE_INPUT_REQUESTED_MS && !entry.waitingForInput) {
+        entry.waitingForInput = true;
+        log.info({ run_id: runId, task_id: taskId, idle_ms: idleMs }, "agent awaiting input");
+        bus.emit({
+          type: "run.input_requested",
+          task_id: taskId,
+          workspace_id: workspaceId,
+          run_id: runId,
+          idle_ms: idleMs,
+        });
+      }
     }, 1000);
 
     handle.ipty.onData((chunk) => {
@@ -185,6 +217,17 @@ export const runDispatcher = {
       scrollback.push(chunk);
       notifyData(runId, chunk);
       flush.add(Buffer.byteLength(chunk, "utf8"));
+      entry.lastDataAt = Date.now();
+      if (entry.waitingForInput) {
+        entry.waitingForInput = false;
+        log.info({ run_id: runId, task_id: taskId }, "agent resumed output");
+        bus.emit({
+          type: "run.input_resumed",
+          task_id: taskId,
+          workspace_id: workspaceId,
+          run_id: runId,
+        });
+      }
     });
 
     handle.ipty.onExit(({ exitCode, signal }) => {
@@ -299,6 +342,19 @@ export const runDispatcher = {
     const entry = live.get(runId);
     if (!entry) return;
     entry.ipty.write(data);
+    // User typed something — even if the agent doesn't echo immediately, the
+    // user has acted on the input request. Clear the waiting flag and emit a
+    // resume event so the notification icon disappears on the next render.
+    if (entry.waitingForInput) {
+      entry.waitingForInput = false;
+      bus.emit({
+        type: "run.input_resumed",
+        task_id: entry.taskId,
+        workspace_id: entry.workspaceId,
+        run_id: runId,
+      });
+    }
+    entry.lastDataAt = Date.now();
   },
 
   sendSignal(runId: string, sig: "SIGINT" | "SIGTERM"): void {

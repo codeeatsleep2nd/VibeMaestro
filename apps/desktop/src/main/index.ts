@@ -2,6 +2,7 @@ import { app, BrowserWindow } from "electron";
 import { initAutoUpdater } from "./auto-update.js";
 import { initDb } from "./db.js";
 import { registerTrpcIpc } from "./ipc.js";
+import { registerDialogBridges } from "./ipc-dialog.js";
 import { registerEventBridges } from "./ipc-events.js";
 import { registerTerminalBridges } from "./ipc-terminal.js";
 import { logger } from "./lib/logger.js";
@@ -16,6 +17,7 @@ async function bootstrap() {
   registerTrpcIpc();
   registerEventBridges();
   registerTerminalBridges();
+  registerDialogBridges();
   registerLifecycleHooks();
 
   await app.whenReady();

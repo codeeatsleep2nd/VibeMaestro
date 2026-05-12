@@ -4,7 +4,9 @@ import {
   skillDefinitionSchema,
 } from "@vibemaestro/core";
 import { z } from "zod";
+import { discoverSkillsForClaudeCode } from "../lib/skill-discovery.js";
 import { createAgentService } from "../services/agent-service.js";
+import { createWorkspaceService } from "../services/workspace-service.js";
 import { procedure, router } from "../trpc.js";
 
 const agentIdInput = z.object({ id: z.string() });
@@ -60,5 +62,40 @@ export const agentsRouter = router({
     .mutation(({ input }) => {
       const svc = createAgentService();
       return { data: svc.registerSkills(input.id, input.skills) };
+    }),
+
+  /**
+   * Filesystem-scanned skill catalog for an agent in the context of a workspace.
+   * Returns the live list every call (no caching) so installing a new skill
+   * shows up immediately without restarting the app. For Claude Code this scans
+   * ~/.claude/skills, plugin marketplaces, and <workspace.path>/.claude/skills.
+   * For agents without a filesystem skill model (codex), falls back to the
+   * seeded list stored on the agent row.
+   */
+  discoverSkills: procedure
+    .input(z.object({ agent_id: z.string(), workspace_id: z.string().optional() }))
+    .output(z.object({ data: z.array(skillDefinitionSchema) }))
+    .query(({ input }) => {
+      const svc = createAgentService();
+      const agent = svc.require(input.agent_id);
+      if (agent.id !== "claude-code") {
+        // Codex et al. — return the static seeded list.
+        return { data: agent.skills };
+      }
+      let workspacePath: string | null = null;
+      if (input.workspace_id) {
+        try {
+          const ws = createWorkspaceService().get(input.workspace_id);
+          workspacePath = ws?.path ?? null;
+        } catch {
+          workspacePath = null;
+        }
+      }
+      const scanned = discoverSkillsForClaudeCode(workspacePath);
+      // Merge with the agent's seeded skills so workspace-scoped extras are
+      // additive — seeded skills shadow scanned ones when ids collide.
+      const byId = new Map(scanned.map((s) => [s.id, s]));
+      for (const seeded of agent.skills) byId.set(seeded.id, seeded);
+      return { data: Array.from(byId.values()).sort((a, b) => a.id.localeCompare(b.id)) };
     }),
 });

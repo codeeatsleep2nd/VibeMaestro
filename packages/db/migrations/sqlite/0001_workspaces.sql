@@ -4,14 +4,27 @@
 -- from schema diffs. If the schema changes, edit this file by hand or write
 -- a follow-up migration.
 --
--- ARCH-E2: wrap the destructive sequence in explicit BEGIN/COMMIT so partial
--- failure rolls back even if Drizzle's `--> statement-breakpoint` splits batches.
--- Belt + suspenders: nested transactions are harmless in SQLite (savepoints).
+-- ATOMICITY: Drizzle's better-sqlite3 migrator already wraps each migration file
+-- in a single transaction (see drizzle-orm/better-sqlite3/migrator). So a partial
+-- failure rolls back automatically without an explicit BEGIN/COMMIT here.
+-- (ARCH-E2's original "belt + suspenders" inner BEGIN/COMMIT was tried and rejected:
+-- nested transactions inside an existing implicit transaction throw at runtime via
+-- better-sqlite3's prepared-statement API. The outer migrator transaction is the
+-- single source of atomicity for this file.)
+--
 -- D2: no `kind` / `git_url` / `resolved_path` / `status` / `error` fields.
 -- D22: workspaces.default_agent_id is NULLABLE; workspace-service lazy-fills.
 -- REV-S1: UPDATE agents rows to prompt_via=arg with --print / exec args.
 -- D11: defensive INSERT OR IGNORE of v1 agents in case 0000's seed rows were deleted.
 -- D7: tasks gains workspace_id NOT NULL + phase_skills_override. NO agent_id_override.
+
+-- The runs table FK-references `tasks(id)` ON DELETE CASCADE. With foreign_keys=ON
+-- (sqlite-init.ts), `DROP TABLE tasks` mid-migration would violate the FK. Defer
+-- FK checks to COMMIT time — the rename of tasks_new → tasks reinstates the target
+-- before COMMIT, so the check passes. defer_foreign_keys is per-transaction and
+-- auto-resets, so subsequent transactions see foreign_keys=ON as normal.
+PRAGMA defer_foreign_keys = ON;
+--> statement-breakpoint
 
 CREATE TABLE IF NOT EXISTS `workspaces` (
   `id` TEXT PRIMARY KEY NOT NULL,
@@ -50,9 +63,8 @@ VALUES ('ws_local','Local','',NULL,'{"planning":[],"running":[],"reviewing":[],"
 --> statement-breakpoint
 
 -- 12-step rebuild of `tasks` to add NOT NULL workspace_id with FK + phase_skills_override.
--- Wrapped in BEGIN/COMMIT (ARCH-E2). DROP+RENAME inside the same transaction.
-BEGIN;
---> statement-breakpoint
+-- The whole migration file runs inside Drizzle's outer transaction, so DROP+RENAME
+-- here is already atomic with the surrounding CREATE/INSERT statements.
 CREATE TABLE `tasks_new` (
   `id` TEXT PRIMARY KEY NOT NULL,
   `title` TEXT NOT NULL,
@@ -77,5 +89,3 @@ ALTER TABLE `tasks_new` RENAME TO `tasks`;
 CREATE INDEX IF NOT EXISTS `status_agent_idx` ON `tasks` (`status`, `agent_id`, `id`);
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS `tasks_workspace_idx` ON `tasks` (`workspace_id`, `status`, `id`);
---> statement-breakpoint
-COMMIT;

@@ -11,6 +11,7 @@ export type Transition =
   | "agent_exit_0"
   | "agent_fail"
   | "cancel"
+  | "submit_for_review"
   | "approve"
   | "reject"
   | "retry"
@@ -21,6 +22,12 @@ const ALLOWED: Record<Transition, { from: ReadonlyArray<TaskStatus>; to: TaskSta
   agent_exit_0: { from: ["running"], to: "reviewing" },
   agent_fail: { from: ["running"], to: "error" },
   cancel: { from: ["running"], to: "blocked" },
+  /**
+   * User-triggered alternative to `agent_exit_0` for interactive YOLO agents
+   * that never exit. The agent stays alive across the running → reviewing
+   * transition; only the task's status moves forward.
+   */
+  submit_for_review: { from: ["running"], to: "reviewing" },
   approve: { from: ["reviewing"], to: "complete" },
   reject: { from: ["reviewing"], to: "backlog" },
   retry: { from: ["error"], to: "running" },

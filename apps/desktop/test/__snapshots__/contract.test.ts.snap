@@ -7,6 +7,10 @@ exports[`appRouter contract snapshot of every procedure path + type 1`] = `
     "mutation",
   ],
   [
+    "agents.discoverSkills",
+    "query",
+  ],
+  [
     "agents.get",
     "query",
   ],
@@ -64,6 +68,10 @@ exports[`appRouter contract snapshot of every procedure path + type 1`] = `
   ],
   [
     "tasks.run",
+    "mutation",
+  ],
+  [
+    "tasks.submitForReview",
     "mutation",
   ],
   [

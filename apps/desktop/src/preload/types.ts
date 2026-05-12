@@ -35,6 +35,10 @@ export type VmBridge = {
     onOutput: (runId: string, cb: (chunk: string) => void) => () => void;
     onClosed: (runId: string, cb: (info: { at: string }) => void) => () => void;
   };
+  dialog: {
+    /** Open the native folder picker. Resolves to the absolute path or null if cancelled. */
+    selectDirectory: () => Promise<string | null>;
+  };
 };
 
 declare global {

@@ -49,6 +49,10 @@ const bridge: VmBridge = {
       return () => ipcRenderer.removeListener(channel, handler);
     },
   },
+
+  dialog: {
+    selectDirectory: () => ipcRenderer.invoke("dialog.selectDirectory") as Promise<string | null>,
+  },
 };
 
 contextBridge.exposeInMainWorld("vmBridge", bridge);

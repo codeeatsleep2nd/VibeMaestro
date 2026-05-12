@@ -11,6 +11,7 @@ import { CreateWorkspaceModal } from "./components/workspace/CreateWorkspaceModa
 import { WorkspaceStrip } from "./components/workspace/WorkspaceStrip.js";
 import { useEventStream } from "./hooks/useEventStream.js";
 import { useAgents, useTasks } from "./hooks/useTasks.js";
+import { useTasksAwaitingInput } from "./hooks/useTasksAwaitingInput.js";
 import { useWorkspaces } from "./hooks/useWorkspaces.js";
 import { toast } from "./lib/toast.js";
 import { getActiveWorkspaceId, setActiveWorkspaceId } from "./lib/workspace-storage.js";
@@ -46,6 +47,7 @@ function Shell() {
   const workspacesQuery = useWorkspaces();
   const tasksQuery = useTasks(activeWorkspaceId);
   const agentsQuery = useAgents();
+  const tasksAwaitingInput = useTasksAwaitingInput();
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -110,8 +112,15 @@ function Shell() {
     if (isLoading) return <LoadingState />;
     if (errored) return <ErrorState error={errored} />;
     if (isEmpty) return <BoardEmptyState onCreate={() => setCreateTaskOpen(true)} />;
-    return <Board tasks={tasks} agents={agents} onSelect={setSelectedTaskId} />;
-  }, [isLoading, errored, isEmpty, tasks, agents]);
+    return (
+      <Board
+        tasks={tasks}
+        agents={agents}
+        awaitingInput={tasksAwaitingInput}
+        onSelect={setSelectedTaskId}
+      />
+    );
+  }, [isLoading, errored, isEmpty, tasks, agents, tasksAwaitingInput]);
 
   return (
     <div className="h-full flex flex-col bg-surface-base">

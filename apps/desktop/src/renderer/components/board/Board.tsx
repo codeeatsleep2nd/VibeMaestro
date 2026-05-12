@@ -6,10 +6,11 @@ import { Lane } from "./Lane.js";
 type Props = {
   tasks: Task[];
   agents: Agent[];
+  awaitingInput?: Set<string>;
   onSelect?: (taskId: string) => void;
 };
 
-export function Board({ tasks, agents, onSelect }: Props) {
+export function Board({ tasks, agents, awaitingInput, onSelect }: Props) {
   const groups = useMemo(() => groupByStatus(tasks), [tasks]);
   const agentMap = useMemo(() => new Map(agents.map((a) => [a.id, a])), [agents]);
 
@@ -27,18 +28,20 @@ export function Board({ tasks, agents, onSelect }: Props) {
     >
       <Lane
         status="backlog"
-        label="Backlog"
+        label="Planning"
         caption={groups.blocked.length > 0 ? `${groups.blocked.length} blocked` : undefined}
         tasks={backlog}
         agents={agentMap}
+        awaitingInput={awaitingInput}
         onSelect={onSelect}
       />
       <Lane
         status="running"
-        label="Running"
+        label="Implementing"
         caption={running.length > 0 ? "live" : undefined}
         tasks={running}
         agents={agentMap}
+        awaitingInput={awaitingInput}
         onSelect={onSelect}
       />
       <Lane
@@ -47,6 +50,7 @@ export function Board({ tasks, agents, onSelect }: Props) {
         caption={groups.error.length > 0 ? `${groups.error.length} errored` : undefined}
         tasks={reviewing}
         agents={agentMap}
+        awaitingInput={awaitingInput}
         onSelect={onSelect}
       />
       <Lane
@@ -54,6 +58,7 @@ export function Board({ tasks, agents, onSelect }: Props) {
         label="Complete"
         tasks={complete}
         agents={agentMap}
+        awaitingInput={awaitingInput}
         onSelect={onSelect}
       />
     </div>

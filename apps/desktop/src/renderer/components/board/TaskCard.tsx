@@ -1,5 +1,5 @@
 import type { Agent, Task } from "@vibemaestro/core";
-import { ArrowRight, Check, RefreshCw, X } from "lucide-react";
+import { ArrowRight, Bell, Check, RefreshCw, X } from "lucide-react";
 import {
   useApproveTask,
   useCancelTask,
@@ -14,10 +14,11 @@ import { StatusIndicator } from "../status/StatusIndicator.js";
 type Props = {
   task: Task;
   agents: Map<string, Agent>;
+  awaitingInput?: boolean;
   onSelect?: (taskId: string) => void;
 };
 
-export function TaskCard({ task, agents, onSelect }: Props) {
+export function TaskCard({ task, agents, awaitingInput, onSelect }: Props) {
   const agent = agents.get(task.agent_id);
   const elapsed = formatRelative(task.updated_at);
 
@@ -32,7 +33,7 @@ export function TaskCard({ task, agents, onSelect }: Props) {
       }}
       role="button"
       tabIndex={0}
-      aria-label={`Open ${task.id}: ${task.title}`}
+      aria-label={`Open ${task.id}: ${task.title}${awaitingInput ? " (agent awaiting input)" : ""}`}
       className={cn(
         "group relative bg-surface-raised rounded-md border border-border-subtle",
         "transition-[border-color,transform] duration-[var(--duration-fast)] ease-[var(--easing-standard)]",
@@ -46,10 +47,11 @@ export function TaskCard({ task, agents, onSelect }: Props) {
         borderLeftColor: `var(--agent-${task.agent_id})`,
       }}
     >
-      {/* Header: ID + status indicator + agent chip */}
+      {/* Header: ID + status indicator + (optional) input-needed bell + agent chip */}
       <header className="flex items-center justify-between gap-3">
         <span className="text-meta text-text-tertiary">{task.id}</span>
         <div className="flex items-center gap-2">
+          {awaitingInput ? <AwaitingInputBadge /> : null}
           <StatusIndicator status={task.status} />
           {agent && <AgentChip agent={agent} size="sm" />}
         </div>
@@ -167,6 +169,32 @@ function ActionButton({
       {icon}
       {label}
     </button>
+  );
+}
+
+/**
+ * Bell icon shown on the task card when the dispatcher reports the agent is
+ * parked at the REPL prompt awaiting user input. Uses the accent hue + a calm
+ * pulse so it reads as "attention" not "alarm" — matches DESIGN.md §13's
+ * color-blind safety (shape + animation, not color alone).
+ */
+function AwaitingInputBadge() {
+  return (
+    <span
+      role="img"
+      aria-label="Agent awaiting input"
+      title="Agent is waiting for your reply"
+      className="vm-pulse-status inline-flex items-center justify-center"
+      style={{
+        width: 16,
+        height: 16,
+        borderRadius: "var(--radius-xs)",
+        color: "var(--accent-base)",
+        backgroundColor: "color-mix(in oklch, var(--accent-base) 18%, transparent)",
+      }}
+    >
+      <Bell size={10} strokeWidth={2.25} />
+    </span>
   );
 }
 

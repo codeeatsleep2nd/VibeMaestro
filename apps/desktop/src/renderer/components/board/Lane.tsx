@@ -7,10 +7,11 @@ type Props = {
   caption?: string;
   tasks: Task[];
   agents: Map<string, Agent>;
+  awaitingInput?: Set<string>;
   onSelect?: (taskId: string) => void;
 };
 
-export function Lane({ status, label, caption, tasks, agents, onSelect }: Props) {
+export function Lane({ status, label, caption, tasks, agents, awaitingInput, onSelect }: Props) {
   return (
     <section
       aria-labelledby={`lane-${status}-heading`}
@@ -38,7 +39,13 @@ export function Lane({ status, label, caption, tasks, agents, onSelect }: Props)
           <EmptyLaneHint status={status} />
         ) : (
           tasks.map((task) => (
-            <TaskCard key={task.id} task={task} agents={agents} onSelect={onSelect} />
+            <TaskCard
+              key={task.id}
+              task={task}
+              agents={agents}
+              awaitingInput={awaitingInput?.has(task.id) ?? false}
+              onSelect={onSelect}
+            />
           ))
         )}
       </div>

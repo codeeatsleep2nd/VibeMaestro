@@ -43,6 +43,34 @@ export const eventRunEnded = z.object({
   outcome: z.enum(["succeeded", "failed", "cancelled"]),
 });
 
+/**
+ * Emitted when the dispatcher detects the agent's PTY has been idle for
+ * IDLE_INPUT_REQUESTED_MS. The agent has finished responding and is parked at
+ * the REPL prompt waiting for the next user message. The renderer surfaces
+ * this as a notification icon on the task card so the user knows their
+ * attention is needed.
+ */
+export const eventRunInputRequested = z.object({
+  type: z.literal("run.input_requested"),
+  task_id: z.string(),
+  workspace_id: z.string().optional(),
+  run_id: z.string(),
+  idle_ms: z.number().int(),
+});
+
+/**
+ * Emitted when PTY output resumes after a "waiting for input" window — the
+ * user typed something into the REPL, or the agent started producing output
+ * again (e.g., processing a queued tool call). The renderer clears the
+ * notification icon.
+ */
+export const eventRunInputResumed = z.object({
+  type: z.literal("run.input_resumed"),
+  task_id: z.string(),
+  workspace_id: z.string().optional(),
+  run_id: z.string(),
+});
+
 export const eventAgentAvailability = z.object({
   type: z.literal("agent.availability_changed"),
   agent_id: z.string(),
@@ -54,6 +82,8 @@ export const renderableEventSchema = z.discriminatedUnion("type", [
   eventRunStarted,
   eventRunProgress,
   eventRunEnded,
+  eventRunInputRequested,
+  eventRunInputResumed,
   eventAgentAvailability,
 ]);
 
